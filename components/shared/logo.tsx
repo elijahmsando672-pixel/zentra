@@ -8,12 +8,12 @@ export function LogoMark({ className }: { className?: string }) {
       aria-hidden="true"
       className={cn("size-8", className)}
     >
-      <rect width="32" height="32" rx="9" fill="#071426" />
+      <rect width="32" height="32" rx="9" fill="#101B35" />
       <path
         d="M9 9.5h14v3.4l-8.6 6.2H23v3.4H9v-3.4l8.6-6.2H9V9.5Z"
-        fill="#C8F24A"
+        fill="#FFFFFF"
       />
-      <circle cx="24" cy="8.5" r="2.2" fill="#F5B942" />
+      <circle cx="24" cy="8.5" r="2.2" fill="#10B981" />
     </svg>
   );
 }

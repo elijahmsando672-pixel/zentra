@@ -46,7 +46,7 @@ export function WalletDonut({
               if (!active || !payload?.length) return null;
               const item = payload[0];
               return (
-                <div className="rounded-md border border-[#1e3050] bg-[#101d31] px-3.5 py-2.5 text-xs shadow-lg">
+                <div className="rounded-md border border-[#24365c] bg-[#101b35] px-3.5 py-2.5 text-xs shadow-lg">
                   <p className="font-semibold text-white/70">{item.name}</p>
                   <p className="numeric font-bold text-white">{formatKES(item.value)}</p>
                 </div>

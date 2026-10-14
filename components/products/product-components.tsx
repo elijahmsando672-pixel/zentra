@@ -10,13 +10,13 @@ import { ICON_MAP, PRODUCT_TIERS } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
 const tierAccent: Record<string, string> = {
-  starter: "#18B97A",
-  growth: "#C8F24A",
-  elite: "#F5B942",
+  starter: "#10B981",
+  growth: "#10B981",
+  elite: "#D4AF37",
 };
 
 const badgeMeta: Record<NonNullable<Product["badge"]>, { label: string; className: string }> = {
-  popular: { label: "Popular", className: "bg-primary text-brand-deep" },
+  popular: { label: "Popular", className: "bg-primary text-primary-foreground" },
   limited: { label: "Limited", className: "bg-gold text-gold-foreground" },
   new: { label: "New", className: "bg-info text-white" },
   sold_out: { label: "Sold out", className: "bg-muted text-muted-foreground" },
@@ -60,7 +60,7 @@ export function ProductIcon({
   return (
     <span
       className={cn("flex size-12 items-center justify-center rounded-md", className)}
-      style={{ backgroundColor: `${accent}1f`, color: accent === "#C8F24A" ? "#071426" : accent }}
+      style={{ backgroundColor: `${accent}1f`, color: accent }}
     >
       <Icon className="size-6" />
     </span>
@@ -119,7 +119,7 @@ export function ProductCard({
           </div>
           <div>
             <dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Daily earning*</dt>
-            <dd className="numeric mt-0.5 text-sm font-extrabold" style={{ color: accent === "#C8F24A" ? undefined : accent }}>
+            <dd className="numeric mt-0.5 text-sm font-extrabold" style={{ color: accent }}>
               {formatKES(product.dailyEarningAtEntry)}
             </dd>
           </div>
@@ -192,7 +192,7 @@ export function ProductCalculator({ product }: { product: Product }) {
           step={product.stepAmount}
           value={clamped}
           onChange={(e) => setAmount(Number(e.target.value))}
-          className="w-full accent-[#071426] dark:accent-[#c8f24a]"
+          className="w-full accent-[#10b981] dark:accent-[#10b981]"
           aria-valuetext={`${clamped} shillings`}
         />
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -237,7 +237,7 @@ export function ProductTierChip({ tier }: { tier: Product["tier"] }) {
   return (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-      style={{ backgroundColor: `${tierAccent[tier]}1f`, color: tierAccent[tier] === "#C8F24A" ? "#071426" : tierAccent[tier] }}
+      style={{ backgroundColor: `${tierAccent[tier]}1f`, color: tierAccent[tier] }}
     >
       {PRODUCT_TIERS[tier].label}
     </span>

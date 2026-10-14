@@ -22,18 +22,33 @@ export function OtpInput({
   label?: string;
 }) {
   const refs = React.useRef<(HTMLInputElement | null)[]>([]);
-  const chars = value.padEnd(length, " ").slice(0, length).split("");
+  const slotsFromValue = React.useCallback(
+    (v: string) => v.replace(/\D/g, "").padEnd(length, " ").slice(0, length).split(""),
+    [length]
+  );
+  const [slots, setSlots] = React.useState<string[]>(() => slotsFromValue(value));
+  const chars = slots;
 
   React.useEffect(() => {
-    if (value.length === length && onComplete) onComplete(value);
+    const current = slots.join("").replace(/\s/g, "");
+    if (current !== value.replace(/\D/g, "")) setSlots(slotsFromValue(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, length]);
 
+  React.useEffect(() => {
+    if (value.replace(/\D/g, "").length === length && onComplete) onComplete(value.replace(/\D/g, ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, length]);
+
+  const commit = (next: string[]) => {
+    setSlots(next);
+    onChange(next.join("").replace(/\s/g, ""));
+  };
+
   const setChar = (index: number, char: string) => {
-    const next = value.padEnd(length, " ").split("");
-    next[index] = char;
-    const joined = next.join("").replace(/\s+$/, "").trim();
-    onChange(joined);
+    const next = slots.slice();
+    next[index] = char || " ";
+    commit(next);
   };
 
   return (
@@ -73,7 +88,7 @@ export function OtpInput({
               e.preventDefault();
               const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, length);
               if (pasted) {
-                onChange(pasted);
+                commit(pasted.padEnd(length, " ").slice(0, length).split(""));
                 refs.current[Math.min(pasted.length, length - 1)]?.focus();
               }
             }}
@@ -102,7 +117,26 @@ export function TransactionPinInput({
 }) {
   const refs = React.useRef<(HTMLInputElement | null)[]>([]);
   const length = 4;
-  const chars = value.padEnd(length, " ").slice(0, length).split("");
+  const slotsFromValue = (v: string) => v.replace(/\D/g, "").padEnd(length, " ").slice(0, length).split("");
+  const [slots, setSlots] = React.useState<string[]>(() => slotsFromValue(value));
+  const chars = slots;
+
+  React.useEffect(() => {
+    const current = slots.join("").replace(/\s/g, "");
+    if (current !== value.replace(/\D/g, "")) setSlots(slotsFromValue(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, length]);
+
+  const commit = (next: string[]) => {
+    setSlots(next);
+    onChange(next.join("").replace(/\s/g, ""));
+  };
+
+  const setChar = (index: number, char: string) => {
+    const next = slots.slice();
+    next[index] = char || " ";
+    commit(next);
+  };
 
   return (
     <div className="space-y-3">
@@ -131,9 +165,7 @@ export function TransactionPinInput({
             )}
             onChange={(e) => {
               const digit = e.target.value.replace(/\D/g, "").slice(-1);
-              const next = value.padEnd(length, " ").split("");
-              next[i] = digit;
-              onChange(next.join("").replace(/\s+$/, "").trim());
+              setChar(i, digit);
               if (digit && i < length - 1) refs.current[i + 1]?.focus();
             }}
             onKeyDown={(e) => {

@@ -45,13 +45,13 @@ export default function RewardsPage() {
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl space-y-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-primary">
+              <p className="text-xs font-bold uppercase tracking-widest text-accent-strong">
                 Rewards program
               </p>
-              <h1 className="text-3xl font-extrabold tracking-tight text-balance text-white sm:text-5xl">
+              <h1 className="text-3xl font-extrabold tracking-tight text-balance text-foreground sm:text-5xl">
                 Grow a team, climb the ranks
               </h1>
-              <p className="text-sm leading-relaxed text-white/70 sm:text-base">
+              <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                 Zentra rewards you across three levels of your team. Invite people, help them get
                 started, and earn at higher rates as your rank rises.
               </p>

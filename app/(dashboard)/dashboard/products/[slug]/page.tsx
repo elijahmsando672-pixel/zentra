@@ -347,7 +347,6 @@ function InvestDialog({
     }
     if (!agreed) errors.agreement = "Please confirm that you understand the projected amounts are estimates.";
     if (pin.length !== 4) errors.pin = "Enter your 4-digit transaction PIN.";
-    else if (pin !== DEMO_TRANSACTION_PIN) errors.pin = "Incorrect transaction PIN.";
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -359,6 +358,7 @@ function InvestDialog({
       productId: product.id,
       amount: parsed,
       wallet: "deposit",
+      pin,
     });
     if (!res.ok) {
       toast.error(res.message);

@@ -31,8 +31,8 @@ import { adminLogout } from "@/lib/services/auth";
 function AdminBrandMark() {
   return (
     <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden>
-      <rect width="32" height="32" rx="9" fill="#F5B942" />
-      <path d="M9 22.5V9.5h3.4l6.2 8.6V9.5H22V22.5h-3.4l-6.2-8.6v8.6H9Z" fill="#071426" />
+      <rect width="32" height="32" rx="9" fill="#D4AF37" />
+      <path d="M9 22.5V9.5h3.4l6.2 8.6V9.5H22V22.5h-3.4l-6.2-8.6v8.6H9Z" fill="#101B35" />
     </svg>
   );
 }
@@ -131,7 +131,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      {isMobile && mobileOpen && (
+      {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-brand-deep/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} aria-hidden />
           <div className="absolute inset-y-0 left-0 w-72 bg-card shadow-xl">

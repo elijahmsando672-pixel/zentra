@@ -58,11 +58,11 @@ export default function ContactPage() {
         <div className="grid-pattern absolute inset-0 opacity-60" aria-hidden />
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <div className="max-w-2xl space-y-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">Support</p>
-            <h1 className="text-3xl font-extrabold tracking-tight text-balance text-white sm:text-5xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent-strong">Support</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-balance text-foreground sm:text-5xl">
               Talk to the Zentra team
             </h1>
-            <p className="text-sm leading-relaxed text-white/70 sm:text-base">
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
               Fill in your details, choose where to send your message, and we will open it for you.
             </p>
           </div>

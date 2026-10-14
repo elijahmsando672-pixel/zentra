@@ -92,8 +92,8 @@ export default function SecurityPage() {
     e.preventDefault();
     const errors: Record<string, string> = {};
     if (!/^\d{4}$/.test(newPin)) errors.newPin = "Enter a 4-digit PIN.";
-    if (user?.hasTransactionPin && currentPin !== DEMO_TRANSACTION_PIN) {
-      errors.currentPin = "Incorrect transaction PIN.";
+    if (user?.hasTransactionPin && !currentPin) {
+      errors.currentPin = "Enter your current PIN.";
     }
     setPinErrors(errors);
     if (Object.keys(errors).length > 0) return;

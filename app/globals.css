@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, -apple-system,
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   --color-background: var(--background);
@@ -16,6 +16,7 @@
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent-strong: var(--accent-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -66,7 +67,7 @@
   --shadow-md: 0 4px 14px rgba(16, 24, 40, 0.06), 0 2px 6px rgba(16, 24, 40, 0.04);
   --shadow-lg: 0 14px 34px rgba(7, 20, 38, 0.1), 0 4px 12px rgba(7, 20, 38, 0.05);
   --shadow-xl: 0 28px 60px rgba(7, 20, 38, 0.16);
-  --shadow-glow: 0 0 0 1px rgba(200, 242, 74, 0.25), 0 12px 30px rgba(200, 242, 74, 0.14);
+  --shadow-glow: 0 0 0 1px rgba(16, 185, 129, 0.3), 0 12px 30px rgba(16, 185, 129, 0.18);
 
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -145,83 +146,85 @@
   --font-manrope: "Manrope";
 
   --background: #f7f9fc;
-  --foreground: #101828;
+  --foreground: #111c32;
 
   --card: #ffffff;
-  --card-foreground: #101828;
+  --card-foreground: #111c32;
   --popover: #ffffff;
-  --popover-foreground: #101828;
+  --popover-foreground: #111c32;
 
-  --primary: #c8f24a;
-  --primary-foreground: #071426;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
 
   --secondary: #eef2f8;
-  --secondary-foreground: #101828;
+  --secondary-foreground: #111c32;
 
   --muted: #eef2f8;
-  --muted-foreground: #6b7280;
+  --muted-foreground: #667085;
 
-  --accent: #c8f24a;
-  --accent-foreground: #071426;
+  --accent: #10b981;
+  --accent-foreground: #ffffff;
+  --accent-strong: #087e5b;
 
-  --brand-deep: #071426;
-  --brand-navy: #101d31;
-  --brand-navy-soft: #17273f;
-  --brand-line: #1e3050;
+  --brand-deep: #101b35;
+  --brand-navy: #1a2948;
+  --brand-navy-soft: #24365c;
+  --brand-line: #2c3f66;
   --brand-ink: #e9eff8;
 
-  --success: #18b97a;
+  --success: #10b981;
   --success-foreground: #ffffff;
-  --success-soft: #e6f8f1;
+  --success-soft: #e9fbf5;
   --warning: #f59e0b;
   --warning-foreground: #ffffff;
   --warning-soft: #fef3e2;
-  --danger: #ef4444;
+  --danger: #c94b4b;
   --danger-foreground: #ffffff;
   --danger-soft: #fdecec;
   --info: #3b82f6;
   --info-foreground: #ffffff;
   --info-soft: #e9f1fe;
-  --gold: #f5b942;
-  --gold-foreground: #3d2c05;
-  --gold-soft: #fdf3dd;
+  --gold: #d4af37;
+  --gold-foreground: #5b4a10;
+  --gold-soft: #fbf6e7;
 
-  --border: #e4e9f2;
-  --input: #dfe5ef;
-  --ring: #071426;
+  --border: #e5eaf1;
+  --input: #e5eaf1;
+  --ring: #10b981;
 
-  --chart-1: #071426;
-  --chart-2: #18b97a;
-  --chart-3: #c8f24a;
+  --chart-1: #101b35;
+  --chart-2: #10b981;
+  --chart-3: #d4af37;
   --chart-4: #3b82f6;
-  --chart-5: #f5b942;
+  --chart-5: #667085;
 }
 
 .dark {
-  --background: #050f1d;
+  --background: #0a1524;
   --foreground: #e9eff8;
 
-  --card: #0c1929;
+  --card: #101b35;
   --card-foreground: #e9eff8;
-  --popover: #0c1929;
+  --popover: #101b35;
   --popover-foreground: #e9eff8;
 
-  --primary: #c8f24a;
-  --primary-foreground: #071426;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
 
-  --secondary: #122135;
+  --secondary: #1a2948;
   --secondary-foreground: #e9eff8;
 
-  --muted: #122135;
-  --muted-foreground: #8ea0b8;
+  --muted: #1a2948;
+  --muted-foreground: #98a2b3;
 
-  --accent: #c8f24a;
-  --accent-foreground: #071426;
+  --accent: #10b981;
+  --accent-foreground: #ffffff;
+  --accent-strong: #34d399;
 
-  --brand-deep: #020814;
-  --brand-navy: #0a1524;
-  --brand-navy-soft: #122135;
-  --brand-line: #1c2f4c;
+  --brand-deep: #071022;
+  --brand-navy: #101b35;
+  --brand-navy-soft: #1a2948;
+  --brand-line: #24365c;
   --brand-ink: #e9eff8;
 
   --success-soft: #0a2a20;
@@ -230,15 +233,15 @@
   --info-soft: #0e1e3a;
   --gold-soft: #2a2209;
 
-  --border: #1b2b44;
-  --input: #22354f;
-  --ring: #c8f24a;
+  --border: #1e3050;
+  --input: #24365c;
+  --ring: #10b981;
 
-  --chart-1: #c8f24a;
-  --chart-2: #18b97a;
-  --chart-3: #3b82f6;
-  --chart-4: #f5b942;
-  --chart-5: #8ea0b8;
+  --chart-1: #10b981;
+  --chart-2: #34d399;
+  --chart-3: #d4af37;
+  --chart-4: #3b82f6;
+  --chart-5: #98a2b3;
 }
 
 @layer base {
@@ -262,8 +265,8 @@
   }
 
   ::selection {
-    background-color: rgba(200, 242, 74, 0.42);
-    color: #071426;
+    background-color: rgba(16, 185, 129, 0.28);
+    color: #062e22;
   }
 
   :focus-visible {
@@ -310,11 +313,15 @@
 }
 
 @utility gradient-lime {
-  background-image: linear-gradient(135deg, #c8f24a 0%, #9fdc2a 100%);
+  background-image: linear-gradient(135deg, #10b981 0%, #087e5b 100%);
+}
+
+@utility gradient-emerald {
+  background-image: linear-gradient(135deg, #10b981 0%, #087e5b 100%);
 }
 
 @utility gradient-navy {
-  background-image: linear-gradient(150deg, #101d31 0%, #071426 55%, #05101d 100%);
+  background-image: linear-gradient(150deg, #1a2948 0%, #101b35 55%, #071022 100%);
 }
 
 @utility grid-pattern {
@@ -323,17 +330,22 @@
   background-size: 42px 42px;
 }
 
+@utility dot-pattern {
+  background-image: radial-gradient(rgba(16, 27, 53, 0.14) 1px, transparent 1px);
+  background-size: 19px 19px;
+}
+
 @utility gradient-hero {
   background-image:
-    radial-gradient(60% 55% at 85% 0%, rgba(200, 242, 74, 0.14) 0%, transparent 60%),
-    radial-gradient(50% 45% at 10% 100%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
-    linear-gradient(155deg, #0b1a2f 0%, #071426 55%, #040d17 100%);
+    radial-gradient(58% 55% at 88% 0%, rgba(16, 185, 129, 0.12) 0%, transparent 62%),
+    radial-gradient(48% 48% at 4% 100%, rgba(212, 175, 55, 0.08) 0%, transparent 62%),
+    linear-gradient(135deg, #fbfcfe 0%, #f5faf8 55%, #eef5f4 100%);
 }
 
 @utility shadow-glow {
   box-shadow:
-    0 0 0 1px rgba(200, 242, 74, 0.35),
-    0 10px 30px -8px rgba(200, 242, 74, 0.45);
+    0 0 0 1px rgba(16, 185, 129, 0.3),
+    0 10px 30px -8px rgba(16, 185, 129, 0.45);
 }
 
 @keyframes fade-up {

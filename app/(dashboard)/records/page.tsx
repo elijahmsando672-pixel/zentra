@@ -578,7 +578,7 @@ export default function RecordsPage() {
                         `Counterparty: ${detail.counterparty || "—"}`,
                         `Created: ${formatDateTime(detail.createdAt)}`,
                         `Description: ${detail.description}`,
-                      ].join("\\n");
+                      ].join("\n");
                       downloadTextFile(`zentra-receipt-${detail.reference}.txt`, receipt, "text/plain");
                       toast.success("Receipt downloaded.");
                     }}

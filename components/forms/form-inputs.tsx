@@ -149,7 +149,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
     { label: "Weak", color: "#EF4444" },
     { label: "Fair", color: "#F59E0B" },
     { label: "Good", color: "#3B82F6" },
-    { label: "Strong", color: "#18B97A" },
+    { label: "Strong", color: "#10B981" },
   ] as const;
   return { score: score as PasswordStrength["score"], ...table[score] };
 }

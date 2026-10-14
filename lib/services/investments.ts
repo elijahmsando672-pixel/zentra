@@ -31,6 +31,7 @@ export interface CreateInvestmentInput {
   productId: string;
   amount: number;
   wallet: "deposit";
+  pin: string;
 }
 
 export async function createInvestment(

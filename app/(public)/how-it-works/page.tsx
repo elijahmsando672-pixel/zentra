@@ -96,18 +96,18 @@ export default function HowItWorksPage() {
         <div className="grid-pattern absolute inset-0 opacity-60" aria-hidden />
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <div className="max-w-2xl space-y-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">The journey</p>
-            <h1 className="text-3xl font-extrabold tracking-tight text-balance text-white sm:text-5xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent-strong">The journey</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-balance text-foreground sm:text-5xl">
               How Zentra works
             </h1>
-            <p className="text-sm leading-relaxed text-white/70 sm:text-base">
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
               From signup to payout, follow the flow below. Payment options depend on enabled
               methods and provider availability.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-white/20 bg-white/10 text-white">6 simple steps</Badge>
-              <Badge className="border-white/20 bg-white/10 text-white">Configurable payments</Badge>
-              <Badge className="border-white/20 bg-white/10 text-white">Step-by-step guide</Badge>
+              <Badge className="border-border bg-secondary text-foreground">6 simple steps</Badge>
+              <Badge className="border-border bg-secondary text-foreground">Configurable payments</Badge>
+              <Badge className="border-border bg-secondary text-foreground">Step-by-step guide</Badge>
             </div>
           </div>
         </div>

@@ -85,7 +85,7 @@ export function QrCodeGraphic({
               y={r * cellSize}
               width={cellSize}
               height={cellSize}
-              fill="#071426"
+              fill="#101B35"
             />
           ) : null
         )

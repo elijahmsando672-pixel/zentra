@@ -304,8 +304,8 @@ function SidebarContent({ collapsed, onToggleCollapse }: { collapsed: boolean; o
 function LogoMarkSmall() {
   return (
     <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden>
-      <rect width="32" height="32" rx="9" fill="#C8F24A" />
-      <path d="M9 22.5V9.5h3.4l6.2 8.6V9.5H22V22.5h-3.4l-6.2-8.6v8.6H9Z" fill="#071426" />
+      <rect width="32" height="32" rx="9" fill="#10B981" />
+      <path d="M9 22.5V9.5h3.4l6.2 8.6V9.5H22V22.5h-3.4l-6.2-8.6v8.6H9Z" fill="#FFFFFF" />
     </svg>
   );
 }
@@ -416,13 +416,13 @@ export function DashboardShell({ children, title }: { children: React.ReactNode;
               variant="ghost"
               size="icon-sm"
               onClick={toggleTheme}
-              className="cursor-pointer md:hidden"
+              className="cursor-pointer"
               aria-label="Toggle theme"
             >
               {theme === "dark" ? <Sun /> : <Moon />}
             </Button>
             <NotificationBell />
-            <QuickAction className="hidden sm:inline-flex" />
+            <QuickAction className="hidden sm:inline-flex lg:hidden" />
             <UserMenu />
           </div>
         </header>

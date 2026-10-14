@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   Check,
+  Eye,
   Gift,
   Headphones,
   Layers,
@@ -18,6 +19,7 @@ import {
   TrendingUp,
   UserPlus,
   Users,
+  Wallet,
 } from "lucide-react";
 import {
   Accordion,
@@ -67,13 +69,147 @@ function SectionHeading({
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="space-y-1.5">
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-accent-strong">{eyebrow}</p>
         <h2 className="text-2xl font-extrabold tracking-tight text-balance sm:text-3xl">{title}</h2>
         {description && (
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
         )}
       </div>
       {action}
+    </div>
+  );
+}
+
+function HeroDashboardPreview() {
+  return (
+    <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+      <div className="rounded-3xl border border-white/70 bg-card/80 p-3.5 shadow-xl backdrop-blur-md ring-1 ring-primary/10 lg:[transform:perspective(1200px)_rotateY(-1.5deg)_rotateX(1deg)]">
+        <div className="mb-3 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <span className="grid size-6 place-items-center rounded-md bg-brand-deep text-xs font-extrabold text-white">
+              Z
+            </span>
+            <strong className="text-[11px] text-foreground">Overview</strong>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-primary" />
+            Live demo
+            <span className="grid size-6 place-items-center rounded-full bg-secondary text-[9px] font-bold text-foreground">
+              AK
+            </span>
+          </span>
+        </div>
+        <div className="grid grid-cols-[1.55fr_.8fr] gap-2.5">
+          <div className="rounded-xl bg-gradient-to-br from-brand-deep to-brand-navy p-4 text-white">
+            <span className="flex items-center gap-1.5 text-[10px] text-white/60">
+              <Wallet className="size-3.5" /> Available balance
+            </span>
+            <strong className="mt-2.5 mb-1.5 block text-xl font-extrabold tracking-tight">
+              KES 84,260.00
+            </strong>
+            <small className="text-[9px] text-emerald-300">+ KES 3,480 this month</small>
+          </div>
+          <div className="flex flex-col rounded-xl border border-border bg-card p-3.5">
+            <span className="text-[9px] text-muted-foreground">Active plans</span>
+            <strong className="my-2 text-lg font-extrabold text-foreground">03</strong>
+            <small className="flex items-center gap-1 text-[9px] text-accent-strong">
+              <TrendingUp className="size-3" /> On track
+            </small>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between text-[9px] text-muted-foreground">
+              <div className="flex flex-col gap-1">
+                <span>Earnings overview</span>
+                <strong className="text-sm text-foreground">KES 21,840</strong>
+              </div>
+              <span className="rounded border border-border px-1.5 py-0.5">6 months</span>
+            </div>
+            <svg viewBox="0 0 500 130" preserveAspectRatio="none" className="mt-2 h-24 w-full overflow-visible" aria-hidden>
+              <defs>
+                <linearGradient id="heroChartFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0 40H500M0 78H500M0 116H500" stroke="var(--color-border)" strokeWidth="1" />
+              <path
+                d="M0 110 C60 104 78 78 120 84 S186 66 226 72 S288 34 336 46 S410 20 500 8 L500 130 L0 130Z"
+                fill="url(#heroChartFill)"
+              />
+              <path
+                d="M0 110 C60 104 78 78 120 84 S186 66 226 72 S288 34 336 46 S410 20 500 8"
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="3"
+              />
+              <circle cx="500" cy="8" r="4" fill="#fff" stroke="#10b981" strokeWidth="3" />
+            </svg>
+            <div className="flex justify-between text-[8px] text-muted-foreground">
+              {["Jan", "Feb", "Mar", "Apr", "May", "Jun"].map((m) => (
+                <span key={m}>{m}</span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground">Team rewards</span>
+              <span className="grid size-6 place-items-center rounded-md bg-primary/10 text-accent-strong">
+                <Gift className="size-3.5" />
+              </span>
+            </div>
+            <strong className="my-1.5 block text-base font-extrabold text-foreground">KES 12,580</strong>
+            {[
+              ["Level 1", "8%"],
+              ["Level 2", "3%"],
+              ["Level 3", "1%"],
+            ].map(([label, rate]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between border-t border-border py-1.5 text-[8px] text-muted-foreground"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primary" />
+                  {label}
+                </span>
+                <b className="text-foreground">{rate}</b>
+              </div>
+            ))}
+          </div>
+          <div className="col-span-2 rounded-xl border border-border bg-card p-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <strong className="text-[11px] text-foreground">Recent activity</strong>
+              <span className="text-[9px] text-muted-foreground">View all</span>
+            </div>
+            {[
+              ["Daily earning", "Today, 08:30", "+ KES 725", true],
+              ["Growth plan", "18 Jun, 14:20", "− KES 10,000", false],
+            ].map(([title, time, amount, positive]) => (
+              <div
+                key={title as string}
+                className="grid grid-cols-[28px_1fr_auto] items-center gap-2.5 border-t border-border py-2 text-[9px]"
+              >
+                <span
+                  className={
+                    positive
+                      ? "grid size-7 place-items-center rounded-md bg-primary/10 text-accent-strong"
+                      : "grid size-7 place-items-center rounded-md bg-secondary text-foreground"
+                  }
+                >
+                  {positive ? <ArrowRight className="size-3.5 -rotate-45" /> : <Layers className="size-3.5" />}
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <strong className="text-foreground">{title}</strong>
+                  <small className="text-muted-foreground">{time}</small>
+                </span>
+                <b className={positive ? "text-accent-strong" : "text-foreground"}>{amount}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="absolute -right-2 -bottom-4 flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[9px] font-semibold text-muted-foreground shadow-sm">
+        <Eye className="size-3.5 text-accent-strong" /> Illustrative dashboard
+      </div>
     </div>
   );
 }
@@ -180,16 +316,16 @@ export default function HomePage() {
   return (
     <div>
       <section className="gradient-hero relative overflow-hidden">
-        <div className="grid-pattern absolute inset-0 opacity-60" aria-hidden />
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="max-w-3xl space-y-7">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">
+        <div className="dot-pattern absolute inset-0 opacity-70 [mask-image:linear-gradient(to_right,black,transparent_65%)]" aria-hidden />
+        <div className="relative mx-auto grid max-w-7xl gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
+          <div className="max-w-2xl space-y-7">
+            <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent-strong">
               Zentra · Investment and rewards
             </p>
-            <h1 className="text-4xl font-extrabold tracking-tight text-balance text-white sm:text-6xl">
+            <h1 className="text-4xl font-extrabold tracking-tight text-balance text-foreground sm:text-6xl">
               {APP_TAGLINE}
             </h1>
-            <p className="max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+            <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Explore investment plans, track earnings in your wallet and manage three-level team
               rewards from one account.
             </p>
@@ -200,23 +336,21 @@ export default function HomePage() {
                   <ArrowRight />
                 </Link>
               </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-white/25 bg-white/10 text-white hover:bg-white/15"
-              >
+              <Button asChild size="lg" variant="outline" className="border-border bg-card">
                 <Link href="/products">Explore products</Link>
               </Button>
             </div>
             <ul className="flex flex-wrap gap-x-6 gap-y-3 pt-1">
               {["Configurable payments", "Transparent projections", "3-level team rewards"].map((item) => (
-                <li key={item} className="inline-flex items-center gap-2 text-sm text-white/70">
-                  <Check className="size-4 text-primary" />
+                <li key={item} className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <Check className="size-4 text-accent-strong" />
                   {item}
                 </li>
               ))}
             </ul>
+          </div>
+          <div className="hidden lg:block">
+            <HeroDashboardPreview />
           </div>
         </div>
       </section>

@@ -127,25 +127,25 @@ export const WALLET_META: Record<
   investment: {
     label: "Investment Wallet",
     shortLabel: "Investment",
-    hue: "#071426",
+    hue: "#101B35",
     description: "Capital committed across your active product plans.",
   },
   earnings: {
     label: "Earnings Wallet",
     shortLabel: "Earnings",
-    hue: "#18B97A",
+    hue: "#10B981",
     description: "Daily earnings credited from active investments.",
   },
   team_rewards: {
     label: "Team Rewards Wallet",
     shortLabel: "Team",
-    hue: "#C8F24A",
+    hue: "#10B981",
     description: "Rewards earned from your three-level team structure.",
   },
   bonus: {
     label: "Bonus Wallet",
     shortLabel: "Bonus",
-    hue: "#F5B942",
+    hue: "#D4AF37",
     description: "Campaign bonuses, coupon redemptions and cashback.",
   },
   pending_withdrawal: {
@@ -263,9 +263,9 @@ export const RANK_META: Record<RankKey, { label: string; accent: string }> = {
   member: { label: "Member", accent: "#6B7280" },
   bronze: { label: "Bronze", accent: "#B87333" },
   silver: { label: "Silver", accent: "#94A3B8" },
-  gold: { label: "Gold", accent: "#F5B942" },
+  gold: { label: "Gold", accent: "#D4AF37" },
   platinum: { label: "Platinum", accent: "#3B82F6" },
-  diamond: { label: "Diamond", accent: "#C8F24A" },
+  diamond: { label: "Diamond", accent: "#10B981" },
 };
 
 export const NOTIFICATION_META: Record<

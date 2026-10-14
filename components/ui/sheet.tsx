@@ -25,7 +25,6 @@ function SheetContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left";
 }) {
-  const items = React.Children.toArray(children);
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -36,7 +35,7 @@ function SheetContent({
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-card data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out",
+          "bg-card data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 p-5 shadow-lg transition ease-in-out",
           side === "top" &&
             "inset-x-0 top-0 border-b max-h-[85vh] rounded-b-lg data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           side === "bottom" &&
@@ -49,14 +48,11 @@ function SheetContent({
         )}
         {...props}
       >
-        <div className="flex items-center justify-between px-5 pt-5">
-          <div className="min-w-0">{items[0]}</div>
-          <DialogPrimitive.Close className="rounded-xs p-1.5 opacity-70 transition-opacity hover:opacity-100 cursor-pointer [&_svg]:size-4">
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        </div>
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-5 pb-5">{items[1]}</div>
+        {children}
+        <DialogPrimitive.Close className="absolute top-4 right-4 cursor-pointer rounded-xs p-1.5 opacity-70 transition-opacity hover:opacity-100 [&_svg]:size-4">
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

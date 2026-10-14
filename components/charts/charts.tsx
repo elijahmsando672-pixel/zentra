@@ -15,17 +15,17 @@ import type { PortfolioPoint } from "@/lib/types";
 
 const DARK_TOOLTIP = {
   borderRadius: 12,
-  border: "1px solid #1e3050",
-  background: "#101d31",
+  border: "1px solid #24365c",
+  background: "#101b35",
   color: "#e9eff8",
   fontSize: 12,
-  boxShadow: "0 10px 30px rgba(7,20,38,.25)",
+  boxShadow: "0 10px 30px rgba(16,27,53,.25)",
 } as const;
 
 function ChartTooltipContent({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-[#1e3050] bg-[#101d31] px-3.5 py-2.5 text-xs shadow-lg">
+    <div className="rounded-md border border-[#24365c] bg-[#101b35] px-3.5 py-2.5 text-xs shadow-lg">
       <p className="mb-1 font-semibold text-white/70">{formatShortDate(label)}</p>
       {payload.map((entry: any) => (
         <p key={entry.dataKey} className="numeric flex items-center gap-2 font-bold text-white">
@@ -59,8 +59,8 @@ export function PortfolioChart({
         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="portfolioFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c8f24a" stopOpacity={0.32} />
-              <stop offset="100%" stopColor="#c8f24a" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.32} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
             </linearGradient>
             <linearGradient id="investedFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.18} />
@@ -97,7 +97,7 @@ export function PortfolioChart({
             type="monotone"
             dataKey="portfolio"
             name="Portfolio"
-            stroke="#071426"
+            stroke="#101b35"
             strokeWidth={2.25}
             fill="url(#portfolioFill)"
             dot={false}
@@ -149,7 +149,7 @@ export function EarningsBarChart({
           <Tooltip
             content={({ active, payload, label }: any) =>
               active && payload?.length ? (
-                <div className="rounded-md border border-[#1e3050] bg-[#101d31] px-3.5 py-2.5 text-xs shadow-lg">
+                <div className="rounded-md border border-[#24365c] bg-[#101b35] px-3.5 py-2.5 text-xs shadow-lg">
                   <p className="mb-1 font-semibold text-white/70">{label}</p>
                   <p className="numeric font-bold text-white">{valueFormatter(payload[0].value)}</p>
                 </div>
@@ -175,7 +175,7 @@ export function SimpleLineChart({
   data,
   height = 220,
   className,
-  color = "#071426",
+  color = "#101b35",
 }: {
   data: { label: string; value: number }[];
   height?: number;
@@ -210,7 +210,7 @@ export function SimpleLineChart({
           <Tooltip
             content={({ active, payload, label }: any) =>
               active && payload?.length ? (
-                <div className="rounded-md border border-[#1e3050] bg-[#101d31] px-3.5 py-2.5 text-xs shadow-lg">
+                <div className="rounded-md border border-[#24365c] bg-[#101b35] px-3.5 py-2.5 text-xs shadow-lg">
                   <p className="mb-1 font-semibold text-white/70">{label}</p>
                   <p className="numeric font-bold text-white">{formatCompactKES(payload[0].value)}</p>
                 </div>

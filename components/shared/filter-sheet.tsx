@@ -54,7 +54,7 @@ export function FilterSheet({
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent side={isMobile ? "bottom" : "right"} className={cn("gap-0", className)}>
-        <SheetHeader>
+        <SheetHeader className="pr-8">
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>

@@ -1,12 +1,19 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/prisma";
 import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapInvestment } from "@/lib/server/mappers";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
 import { parsePositiveMoney } from "@/lib/server/money";
+import { DEMO_TRANSACTION_PIN } from "@/lib/constants";
 
 const DAY = 86_400_000;
 const round2 = (n: number) => Number(n.toFixed(2));
+
+async function verifyPin(pin: string, pinHash: string | null, hasPin: boolean) {
+  if (hasPin && pinHash) return bcrypt.compare(pin, pinHash);
+  return pin === DEMO_TRANSACTION_PIN;
+}
 
 export async function POST(req: Request) {
   let replayReference: string | null = null;
@@ -22,6 +29,11 @@ export async function POST(req: Request) {
     const parsedAmount = parsePositiveMoney(body.amount);
     if (!parsedAmount) return fail("Enter a valid amount with no more than two decimal places.", "invalid_amount");
     const amount = parsedAmount.value;
+    const pin = String(body.pin ?? "");
+    const pinOk = await verifyPin(pin, user.transactionPinHash, user.hasTransactionPin);
+    if (!pinOk) {
+      return fail("That PIN is not correct. Please try again.", "bad_pin", { pin: "Incorrect transaction PIN." });
+    }
     const reference = operationReference("INV", user.id, idempotencyKey);
     replayReference = reference;
     replayUserId = user.id;

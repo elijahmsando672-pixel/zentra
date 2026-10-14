@@ -56,22 +56,20 @@ export default function RegisterPage() {
     if (invite) setInviteCode(invite);
   }, []);
 
-  React.useEffect(() => {
-    if (step !== 3) return;
-    let cancelled = false;
+  const sendOtp = React.useCallback(async () => {
     setOtpSending(true);
     setDemoCode(null);
     setOtp("");
-    requestOtp(normalizePhoneKE(phone)).then((res) => {
-      if (cancelled) return;
-      setOtpSending(false);
-      if (res.ok) setDemoCode(res.data.demoCode);
-      else toast.error(res.message);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [step, phone]);
+    const res = await requestOtp(normalizePhoneKE(phone));
+    setOtpSending(false);
+    if (res.ok) setDemoCode(res.data.demoCode);
+    else toast.error(res.message);
+  }, [phone]);
+
+  React.useEffect(() => {
+    if (step !== 3) return;
+    void sendOtp();
+  }, [step, sendOtp]);
 
   const validateCurrentStep = () => {
     const next: Record<string, string> = {};
@@ -307,12 +305,30 @@ export default function RegisterPage() {
                   delivery is not configured, so the code is shown here.
                 </div>
               ) : null}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">Didn&apos;t receive a code?</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void sendOtp()}
+                  disabled={otpSending || pending}
+                >
+                  {otpSending ? "Sending…" : "Resend code"}
+                </Button>
+              </div>
             </div>
           )}
 
           <div className="flex items-center gap-2">
-            {step > 0 && step < 3 && (
-              <Button type="button" variant="outline" size="lg" onClick={handleBack} disabled={pending}>
+            {step > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={handleBack}
+                disabled={pending || otpSending}
+              >
                 Back
               </Button>
             )}
