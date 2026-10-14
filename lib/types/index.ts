@@ -332,6 +332,15 @@ export interface MpesaStkRequest {
   expiresAt: string;
 }
 
+export interface MpesaQr {
+  available: boolean;
+  reason?: string;
+  tillNumber: string;
+  merchantName: string;
+  amount: number;
+  image?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Withdrawals                                                         */
 /* ------------------------------------------------------------------ */

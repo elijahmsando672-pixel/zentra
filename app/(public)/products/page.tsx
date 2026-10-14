@@ -87,7 +87,7 @@ export default function ProductsPage() {
               {isLoading ? "Loading plans" : `${data?.total ?? 0} plans available`}
             </h2>
             <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Some displayed figures are illustrative. Check each plan's terms before committing funds.
+              Some displayed figures are illustrative. Check each plan&apos;s terms before committing funds.
             </p>
           </div>
           <Badge variant="info">Illustrative projections</Badge>

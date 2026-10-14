@@ -16,6 +16,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StepIndicator } from "@/components/shared/steps";
 import { ReceiptPreview } from "@/components/financial/financial";
+import { MpesaQrPanel } from "@/components/financial/mpesa-qr-panel";
 import { EmptyState, ErrorState, SuccessState } from "@/components/shared/states";
 import { DemoDataBadge } from "@/components/shared/demo-data-badge";
 import { CopyButton } from "@/components/shared/copy-button";
@@ -425,6 +426,11 @@ export default function WalletDepositPage() {
                       <CopyButton value={contact.mpesaTillNumber} label="Copy Till number" />
                     </div>
                   </div>
+                  <MpesaQrPanel
+                    amount={amountNum}
+                    tillNumber={contact.mpesaTillNumber}
+                    merchantName={contact.adminName}
+                  />
                   <Alert variant="default">
                     <ShieldCheck />
                     <AlertTitle>How it works</AlertTitle>

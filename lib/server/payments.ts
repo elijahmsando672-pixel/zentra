@@ -208,6 +208,79 @@ export async function queryMpesaStk(checkoutRequestId: string): Promise<StkQuery
 }
 
 /* ------------------------------------------------------------------ */
+/* Safaricom Daraja Dynamic QR (official endpoint)                     */
+/* ------------------------------------------------------------------ */
+/* Requires only OAuth consumer credentials; the Till number is sent   */
+/* as the credit party identifier (CPI). Results are cached briefly to */
+/* avoid regenerating identical QR payloads.                           */
+
+export type MpesaQrTrxCode = "BG" | "PB" | "WA" | "SB" | "SM";
+
+export interface MpesaQrInput {
+  tillNumber: string;
+  amount: number;
+  merchantName?: string;
+  reference?: string;
+  trxCode?: MpesaQrTrxCode;
+  size?: "300" | "500";
+}
+
+export interface MpesaQrResult {
+  image: string;
+  base64: string;
+  amount: number;
+  responseDescription: string;
+}
+
+const QR_CACHE_TTL_MS = 10 * 60 * 1000;
+const qrCache = new Map<string, { result: MpesaQrResult; expiresAt: number }>();
+
+export function isMpesaQrConfigured() {
+  const e = mpesaEnv();
+  return Boolean(e.consumerKey && e.consumerSecret);
+}
+
+export async function generateMpesaQr(input: MpesaQrInput): Promise<MpesaQrResult> {
+  const env = mpesaEnv();
+  if (!isMpesaQrConfigured()) throw new Error("M-Pesa QR is not configured.");
+  const amount = Math.min(Math.max(Math.round(input.amount), 1), 999_999);
+  const cacheKey = `${env.environment}:${input.tillNumber}:${amount}:${input.reference ?? ""}`;
+  const cached = qrCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.result;
+
+  const token = await darajaToken(env);
+  const res = await fetch(`${darajaBase(env.environment)}/mpesa/qrcode/v1/generate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      MerchantName: (input.merchantName || "Zentra").slice(0, 26),
+      RefNo: (input.reference || `ZENTRA${input.tillNumber}`).slice(0, 12),
+      Amount: amount,
+      TrxCode: input.trxCode ?? "BG",
+      CPI: input.tillNumber,
+      Size: input.size ?? "300",
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    ResponseCode?: string;
+    ResponseDescription?: string;
+    QRCode?: string;
+  };
+  if (!res.ok || (body.ResponseCode && body.ResponseCode !== "0") || !body.QRCode) {
+    throw new Error(body.ResponseDescription || `Daraja QR generation failed (${res.status}).`);
+  }
+  const base64 = body.QRCode;
+  const result: MpesaQrResult = {
+    image: base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`,
+    base64,
+    amount,
+    responseDescription: body.ResponseDescription ?? "",
+  };
+  qrCache.set(cacheKey, { result, expiresAt: Date.now() + QR_CACHE_TTL_MS });
+  return result;
+}
+
+/* ------------------------------------------------------------------ */
 /* PayPal Orders API v2 (official endpoints)                           */
 /* ------------------------------------------------------------------ */
 /* Enabled only when PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET are set.  */

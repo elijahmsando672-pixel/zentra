@@ -11,11 +11,11 @@
     "test": "node --experimental-strip-types --test",
     "check": "npm run typecheck && npm run lint && npm test && npx prisma validate && npm run build",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.mts",
+    "db:seed": "node --env-file=.env prisma/seed.mts",
     "db:studio": "prisma studio"
   },
   "prisma": {
-    "seed": "node prisma/seed.mts"
+    "seed": "node --env-file=.env prisma/seed.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

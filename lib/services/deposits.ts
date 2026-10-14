@@ -1,6 +1,6 @@
 import { bumpApiVersion } from "@/hooks/use-api";
 import { apiRequest } from "@/lib/services/helpers";
-import type { ApiResponse, Deposit, MpesaStkRequest, PaymentMethod } from "@/lib/types";
+import type { ApiResponse, Deposit, MpesaQr, MpesaStkRequest, PaymentMethod } from "@/lib/types";
 import { clearIdempotencyKey, getIdempotencyKey } from "@/lib/services/idempotency";
 
 export interface InitiateDepositInput {
@@ -94,4 +94,9 @@ export async function getCheckoutConfig(): Promise<ApiResponse<CheckoutConfig>> 
 
 export async function getPublicPaymentConfig(): Promise<ApiResponse<CheckoutConfig>> {
   return apiRequest<CheckoutConfig>("/api/public/payment-config");
+}
+
+export async function getMpesaQr(amount?: number): Promise<ApiResponse<MpesaQr>> {
+  const query = amount && amount > 0 ? `?amount=${encodeURIComponent(Math.round(amount))}` : "";
+  return apiRequest<MpesaQr>(`/api/payments/mpesa-qr${query}`);
 }
