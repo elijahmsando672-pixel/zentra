@@ -6,6 +6,10 @@ import {
   mapRiskFlag, mapSupportTicket, mapUser, mapWithdrawal, mapAdminStaff, mapCampaign, mapProduct,
   mapTeamMember, mapTeamReward, mapCommissionRule, mapReferralActivity,
 } from "@/lib/server/mappers";
+import { canAccess } from "@/lib/server/permissions";
+import { settleDeposit } from "@/lib/server/deposit-settlement";
+import { postJournal, toCents, withdrawalPaidEntries, withdrawalReleaseEntries } from "@/lib/server/ledger";
+import { requestIp } from "@/lib/server/rate-limit";
 import { Prisma } from "@prisma/client";
 
 const n = (v: unknown) => Number(v ?? 0);
@@ -15,22 +19,6 @@ const pageData = <T,>(items: T[], page: number, pageSize: number) => ({
 });
 const queryOf = (req: Request) => new URL(req.url).searchParams;
 const pathOf = (params: { segments: string[] }) => params.segments;
-const canAccess = (role: string, path: string, write = false) => {
-  const financial = ["super_admin", "admin", "finance"];
-  const administrators = ["super_admin", "admin"];
-  const analytics = ["super_admin", "admin", "analyst"];
-  if (path === "tickets") return ["super_admin", "admin", "agent"].includes(role);
-  if (path === "staff") return administrators.includes(role);
-  if (path === "products" && write) return administrators.includes(role);
-  if (["settings", "announcements", "coupons", "campaigns", "commission-rules"].includes(path) && write) return administrators.includes(role);
-  if (path === "settings" || path === "announcements" || path === "coupons") return administrators.includes(role);
-  if (path === "withdrawals") return financial.includes(role);
-  if (path === "deposits" || path === "risk" || path === "audit" || path === "ledger" || path === "reports" || path === "reconciliation") return analytics.includes(role) || financial.includes(role);
-  if (path === "users") return write ? administrators.includes(role) : analytics.includes(role) || financial.includes(role);
-  const readOnlyAreas = ["dashboard", "investments", "team-members", "team-rewards", "commission-rules", "referral-activity", "campaigns"];
-  if (readOnlyAreas.includes(path)) return analytics.includes(role) || financial.includes(role);
-  return false;
-};
 
 export async function GET(req: Request, ctx: { params: Promise<{ segments: string[] }> }) {
   try {
@@ -45,11 +33,20 @@ export async function GET(req: Request, ctx: { params: Promise<{ segments: strin
     const search = (q.get("search") || "").toLowerCase();
     if (path === "dashboard") {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [users, deposits, withdrawals, investments, products, rewards, tickets, flags] = await Promise.all([
+      const [users, deposits, withdrawals, investments, products, rewards, tickets, flags, moneyTransactions, ledgerRefs, recentAudit] = await Promise.all([
         prisma.user.findMany(), prisma.deposit.findMany(), prisma.withdrawal.findMany(),
         prisma.investment.findMany(), prisma.product.findMany(), prisma.teamReward.findMany(),
         prisma.supportTicket.findMany(), prisma.riskFlag.findMany(),
+        prisma.transaction.findMany({ where: { type: { in: ["deposit", "withdrawal"] }, status: "successful" }, select: { reference: true, type: true } }),
+        prisma.ledgerJournal.findMany({ where: { type: { in: ["deposit", "withdrawal"] } }, select: { reference: true } }),
+        prisma.auditLog.findMany({ orderBy: { at: "desc" }, take: 6 }),
       ]);
+      /* A successful money transaction without a matching posted journal is a
+         genuine reconciliation exception that finance must investigate. */
+      const postedRefs = new Set(ledgerRefs.map((row) => row.reference));
+      const reconciliationMismatches = moneyTransactions.filter((tx) =>
+        tx.type === "deposit" ? !postedRefs.has(tx.reference) : !postedRefs.has(`${tx.reference}-PAY`)
+      ).length;
       const summary = {
         totalUsers: users.length, newUsersToday: users.filter(x => x.joinedAt >= today).length,
         verifiedUsers: users.filter(x => x.verificationStatus === "verified").length,
@@ -57,6 +54,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segments: strin
         totalDeposits: deposits.filter(x => x.status === "completed").reduce((s,x)=>s+n(x.amount),0),
         depositsToday: deposits.filter(x => x.status === "completed" && x.createdAt >= today).reduce((s,x)=>s+n(x.amount),0),
         pendingDeposits: deposits.filter(x => x.status === "pending" || x.status === "initiated").length,
+        failedDeposits: deposits.filter(x => x.status === "failed").length,
         totalWithdrawals: withdrawals.filter(x => x.status === "paid").reduce((s,x)=>s+n(x.amount),0),
         pendingWithdrawals: withdrawals.filter(x => x.status === "pending_approval").length,
         failedWithdrawals: withdrawals.filter(x => x.status === "rejected" || x.status === "failed").length,
@@ -65,8 +63,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ segments: strin
         dailyEarningsCredited: investments.filter(x=>x.status === "active" || x.status === "maturing").reduce((s,x)=>s+n(x.dailyEarning),0),
         teamRewardsIssued: rewards.filter(x=>x.status === "claimed").reduce((s,x)=>s+n(x.amount),0),
         openTickets: tickets.filter(x=>x.status !== "resolved" && x.status !== "closed").length,
+        pendingVerifications: users.filter(x => x.verificationStatus === "pending" || x.kycStatus === "pending").length,
         highRiskAccounts: users.filter(x=>x.riskLevel === "high").length,
-        reconciliationMismatches: 0,
+        reconciliationMismatches,
       };
       const txSeries = Array.from({length:30}, (_, i) => {
         const date = new Date(); date.setHours(0,0,0,0); date.setDate(date.getDate()-(29-i));
@@ -85,7 +84,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segments: strin
         prisma.riskFlag.findMany({where:{status:{in:["open","reviewing"]}},take:5,orderBy:{createdAt:"desc"}}),
         prisma.supportTicket.findMany({where:{status:{notIn:["resolved","closed"]}},take:5,orderBy:{updatedAt:"desc"},include:{messages:true}}),
       ]);
-      return ok({...summary,txSeries,productPerf:products.map(p=>({name:p.name,commitments:n(p.capacityUsed),capacity:n(p.capacityTotal),activeInvestments:investments.filter(i=>i.productId===p.id).length})),recentWithdrawals:recentWithdrawals.map(mapWithdrawal),recentDeposits:recentDeposits.map(mapDeposit),riskFlags:recentFlags.map(mapRiskFlag),tickets:recentTickets.map(mapSupportTicket)});
+      return ok({...summary,txSeries,productPerf:products.map(p=>({name:p.name,commitments:n(p.capacityUsed),capacity:n(p.capacityTotal),activeInvestments:investments.filter(i=>i.productId===p.id).length})),recentWithdrawals:recentWithdrawals.map(mapWithdrawal),recentDeposits:recentDeposits.map(mapDeposit),riskFlags:recentFlags.map(mapRiskFlag),tickets:recentTickets.map(mapSupportTicket),recentActivity:recentAudit.map(mapAuditLog)});
     }
     if (path === "users") {
       if (parts[1]) { const u = await prisma.user.findFirst({where:{OR:[{id:parts[1]},{accountNumber:parts[1]}]}}); return u ? ok(mapUser(u)) : notFound("User not found."); }
@@ -144,13 +143,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ segments: stri
     const staff=await getAdminStaff(); if(!staff) return unauthorized();
     const parts=pathOf(await ctx.params); const body=await req.json().catch(()=>({})); const id=parts[1] ?? String(body.id ?? "");
     if(!canAccess(staff.role,parts[0]??"",true)) return fail("Your staff role cannot make changes in this area.","insufficient_permissions",undefined,403);
-    const reason=String(body.reason ?? "").trim(); const now=new Date();
-    const audit=async(action:string,entityType:string,entityId:string,why:string,oldValue?:unknown,newValue?:unknown)=>prisma.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action,entityType,entityId,reason:why,oldValue:oldValue===undefined?null:JSON.stringify(oldValue),newValue:newValue===undefined?null:JSON.stringify(newValue),ip:"",at:now}});
+    const reason=String(body.reason ?? "").trim(); const now=new Date(); const ip=requestIp(req);
+    const audit=async(action:string,entityType:string,entityId:string,why:string,oldValue?:unknown,newValue?:unknown)=>prisma.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action,entityType,entityId,reason:why,oldValue:oldValue===undefined?null:JSON.stringify(oldValue),newValue:newValue===undefined?null:JSON.stringify(newValue),ip,at:now}});
     if(parts[0]==="users"&&id){
       const action=String(body.action); if(!reason) return fail("A reason is required for this action.","reason_required");
       const user=await prisma.user.findUnique({where:{id}}); if(!user) return notFound("User not found.");
       const status=action==="freeze"?"frozen":action==="unfreeze"?"active":["restrict_withdrawals","restrict_deposits","restrict_referrals"].includes(action)?"restricted":user.status;
-      await prisma.$transaction(async tx=>{await tx.user.update({where:{id},data:{status,riskLevel:action==="clear_flags"?"low":user.riskLevel}});if(action==="clear_flags"){await tx.riskFlag.updateMany({where:{userAccountNumber:user.accountNumber,status:{not:"cleared"}},data:{status:"cleared",resolvedAt:now,resolution:reason}});}await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:`user.${action}`,entityType:"user",entityId:id,reason,oldValue:JSON.stringify({status:user.status}),newValue:JSON.stringify({status}),ip:""}});}); return ok({done:true as const});
+      await prisma.$transaction(async tx=>{await tx.user.update({where:{id},data:{status,riskLevel:action==="clear_flags"?"low":user.riskLevel}});if(action==="clear_flags"){await tx.riskFlag.updateMany({where:{userAccountNumber:user.accountNumber,status:{not:"cleared"}},data:{status:"cleared",resolvedAt:now,resolution:reason}});}await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:`user.${action}`,entityType:"user",entityId:id,reason,oldValue:JSON.stringify({status:user.status}),newValue:JSON.stringify({status}),ip}});}); return ok({done:true as const});
     }
     if(parts[0]==="withdrawals"&&id){
       const decision=body.decision==="reject"?"reject":"approve"; if(decision==="reject"&&!reason)return fail("A reason is required to reject a withdrawal.","reason_required");
@@ -164,7 +163,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ segments: stri
         if(pendingDebit.count===0)throw new Error("Pending withdrawal wallet balance is inconsistent.");
         if(decision==="reject") await tx.wallet.update({where:{userId_wallet:{userId:w.userId,wallet:w.wallet}},data:{balance:{increment:w.amount}}});
         await tx.transaction.updateMany({where:{withdrawalId:id},data:{status:decision==="approve"?"successful":"rejected",events:events as Prisma.InputJsonValue}});
-        await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:`withdrawal.${decision}`,entityType:"withdrawal",entityId:w.reference,reason:reason||"Approved within review policy.",oldValue:JSON.stringify({status:w.status}),newValue:JSON.stringify({status:decision==="approve"?"paid":"rejected"}),ip:""}});
+        await postJournal(tx, decision==="approve" ? {
+          type: "withdrawal",
+          description: `Withdrawal ${w.reference} approved and paid`,
+          actor: staff.fullName,
+          userAccountNumber: w.user.accountNumber,
+          reference: `${w.reference}-PAY`,
+          entries: withdrawalPaidEntries(w.user.accountNumber, "mpesa", toCents(w.amount), toCents(w.fee)),
+        } : {
+          type: "withdrawal",
+          description: `Withdrawal ${w.reference} rejected — hold released`,
+          actor: staff.fullName,
+          userAccountNumber: w.user.accountNumber,
+          reference: `${w.reference}-RELEASE`,
+          entries: withdrawalReleaseEntries(w.user.accountNumber, w.wallet, toCents(w.amount)),
+        });
+        await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:`withdrawal.${decision}`,entityType:"withdrawal",entityId:w.reference,reason:reason||"Approved within review policy.",oldValue:JSON.stringify({status:w.status}),newValue:JSON.stringify({status:decision==="approve"?"paid":"rejected"}),ip}});
         return true;
       });
       if(!updated)return fail("This withdrawal has already been reviewed.","already_reviewed",undefined,409);
@@ -182,22 +196,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ segments: stri
         const events=Array.isArray(d.events)?[...d.events as Record<string,unknown>[]]:[];
         events.push({id:`${d.id}_ev_${ts.getTime()}`,label:action==="confirm"?"Payment verified":"Payment rejected",description:action==="confirm"?`Verified by ${staff.fullName}. Deposit Wallet credited.`:reason,timestamp:ts.toISOString(),status:action==="confirm"?"done":"current"});
         try{
-          await prisma.$transaction(async tx=>{
-            const res=await tx.deposit.updateMany({where:{id:d.id,status:"pending"},data:action==="confirm"?{status:"completed",completedAt:ts,events:events as Prisma.InputJsonValue}:{status:"failed",failureReason:reason,events:events as Prisma.InputJsonValue}});
-            if(res.count===0)throw new Error("concurrent_update");
-            if(action==="confirm"){
-              await tx.wallet.update({where:{userId_wallet:{userId:d.userId,wallet:"deposit"}},data:{balance:{increment:Number(d.amount)}}});
-              await tx.transaction.create({data:{reference:d.reference,userId:d.userId,type:"deposit",status:"successful",direction:"incoming",amount:Number(d.amount),fee:Number(d.fee),netAmount:Number(d.amount)-Number(d.fee),wallet:"deposit",description:`Verified deposit (${d.providerReference?`ref ${d.providerReference}`:"manual confirmation"})`,counterparty:d.method==="paypal"?"PayPal":"Safaricom M-Pesa",depositId:d.id,createdAt:d.createdAt,events:events as Prisma.InputJsonValue}});
-              await tx.notification.create({data:{userId:d.userId,category:"transaction",title:"Deposit confirmed",message:`Your deposit of KES ${Number(d.amount).toLocaleString(undefined,{minimumFractionDigits:2})} has been confirmed and credited.`,actionUrl:"/records",actionLabel:"View record"}});
-            }
-            await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:`deposit.${action}`,entityType:"deposit",entityId:d.reference,reason,oldValue:JSON.stringify({status:d.status}),newValue:JSON.stringify({status:action==="confirm"?"completed":"failed"}),ip:""}});
-          });
+          if(action==="confirm"){
+            const settled=await settleDeposit({
+              depositId:d.id,
+              provider:d.method==="paypal"?"paypal":"mpesa",
+              actor:staff.fullName,
+              label:"Payment verified",
+              description:`Verified by ${staff.fullName}. Deposit Wallet credited.`,
+              providerReference:d.providerReference,
+              audit:{actor:staff.fullName,actorRole:staff.role,reason,ip},
+            });
+            if(!settled.settled)return fail("This deposit was updated by someone else.","already_reviewed",undefined,409);
+          }else{
+            await prisma.$transaction(async tx=>{
+              const res=await tx.deposit.updateMany({where:{id:d.id,status:"pending"},data:{status:"failed",failureReason:reason,events:events as Prisma.InputJsonValue}});
+              if(res.count===0)throw new Error("concurrent_update");
+              await tx.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:"deposit.reject",entityType:"deposit",entityId:d.reference,reason,oldValue:JSON.stringify({status:d.status}),newValue:JSON.stringify({status:"failed"}),ip}});
+            });
+          }
         }catch(err){if(String(err).includes("concurrent_update"))return fail("This deposit was updated by someone else.","already_reviewed",undefined,409);throw err;}
         return ok({done:true as const});
       }
       await audit("deposit.manual_review","deposit",d.reference,reason||"Manual review completed.");return ok({done:true as const});
     }
-    if(parts[0]==="risk"&&id){const status=String(body.status) as "open"|"reviewing"|"cleared"|"escalated";const row=await prisma.riskFlag.update({where:{id},data:{status,...(["cleared","escalated"].includes(status)?{resolvedAt:now,resolution:reason||null}:{})}});return ok(mapRiskFlag(row));}
+    if(parts[0]==="risk"&&id){const status=String(body.status) as "open"|"reviewing"|"cleared"|"escalated";if(!["open","reviewing","cleared","escalated"].includes(status))return fail("Choose a valid risk status.","invalid_status");const before=await prisma.riskFlag.findUnique({where:{id}});if(!before)return notFound("Risk flag not found.");const row=await prisma.riskFlag.update({where:{id},data:{status,...(["cleared","escalated"].includes(status)?{resolvedAt:now,resolution:reason||null}:{})}});await audit("risk.status_update","risk_flag",id,reason||"Risk flag reviewed.",{status:before.status},{status});return ok(mapRiskFlag(row));}
     if(parts[0]==="coupons"){
       const code=String(body.code??"").trim().toUpperCase();if(!code)return fail("Enter a coupon code.","invalid_code");
       if(await prisma.coupon.findUnique({where:{code}}))return fail("That coupon code already exists.","duplicate",undefined,409);
@@ -258,9 +280,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ segments: stri
       const review=await prisma.reconciliationReview.upsert({where:{dayKey:key},create:{dayKey:key,reviewer:staff.fullName},update:{reviewer:staff.fullName,reviewedAt:now}});
       await audit("reconciliation.review","reconciliation",key,"Daily reconciliation reviewed.");return ok(review);
     }
-    if(parts[0]==="tickets"&&id&&body.action==="close"){await prisma.supportTicket.update({where:{id},data:{status:"closed"}});return ok({done:true as const});}
-    if(parts[0]==="tickets"&&id){const message=String(body.message??"").trim();if(!message)return fail("Enter a reply.","invalid");await prisma.supportMessage.create({data:{ticketId:id,author:staff.fullName,authorRole:"agent",body:message}});await prisma.supportTicket.update({where:{id},data:{status:"waiting_on_you",lastReplyBy:"agent"}});return ok({done:true as const});}
-    if(parts[0]==="announcements") {const title=String(body.title??"").trim(),text=String(body.body??"").trim();if(!title||!text)return fail("Title and body are required.","invalid");const item=await prisma.announcement.create({data:{title,body:text,severity:String(body.severity??"info"),audience:String(body.audience??"All members")}});return ok(item,201);}
+    if(parts[0]==="tickets"&&id&&body.action==="close"){const ticket=await prisma.supportTicket.findUnique({where:{id}});if(!ticket)return notFound("Ticket not found.");await prisma.supportTicket.update({where:{id},data:{status:"closed"}});await audit("ticket.close","support_ticket",ticket.reference,reason||"Ticket closed by support.",{status:ticket.status},{status:"closed"});return ok({done:true as const});}
+    if(parts[0]==="tickets"&&id){const message=String(body.message??"").trim();if(!message)return fail("Enter a reply.","invalid");const ticket=await prisma.supportTicket.findUnique({where:{id}});if(!ticket)return notFound("Ticket not found.");await prisma.supportMessage.create({data:{ticketId:id,author:staff.fullName,authorRole:"agent",body:message}});await prisma.supportTicket.update({where:{id},data:{status:"waiting_on_you",lastReplyBy:"agent"}});await audit("ticket.reply","support_ticket",ticket.reference,"Support agent replied to the ticket.");return ok({done:true as const});}
+    if(parts[0]==="announcements") {const title=String(body.title??"").trim(),text=String(body.body??"").trim();if(!title||!text)return fail("Title and body are required.","invalid");const item=await prisma.announcement.create({data:{title,body:text,severity:String(body.severity??"info"),audience:String(body.audience??"All members")}});await audit("announcement.create","announcement",item.id,"Announcement published.",undefined,{title,severity:item.severity,audience:item.audience});return ok(item,201);}
     return notFound("Admin action not found.");
   } catch(error){return serverError(error);}
 }
@@ -272,7 +294,10 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ segments: st
     const parts=pathOf(await ctx.params);
     if(!canAccess(staff.role,parts[0]??"",true)) return fail("Your staff role cannot make changes in this area.","insufficient_permissions",undefined,403);
     if(parts[0]!=="announcements"||!parts[1])return notFound("Announcement not found.");
+    const existing=await prisma.announcement.findUnique({where:{id:parts[1]}});
+    if(!existing)return notFound("Announcement not found.");
     const result=await prisma.announcement.deleteMany({where:{id:parts[1]}});
+    if(result.count)await prisma.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action:"announcement.delete",entityType:"announcement",entityId:parts[1],reason:"Announcement removed.",oldValue:JSON.stringify({title:existing.title}),newValue:null,ip:requestIp(req)}});
     return result.count?ok({done:true as const}):notFound("Announcement not found.");
   } catch(error){return serverError(error);}
 }

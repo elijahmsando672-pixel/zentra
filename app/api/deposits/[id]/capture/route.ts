@@ -2,7 +2,7 @@ import { prisma } from "@/lib/server/prisma";
 import { ok, fail, unauthorized, serverError, notFound } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { capturePaypalOrder, isPaypalLiveConfigured } from "@/lib/server/payments";
-import { Prisma } from "@prisma/client";
+import { settleDeposit } from "@/lib/server/deposit-settlement";
 
 export async function POST(
   _req: Request,
@@ -32,61 +32,24 @@ export async function POST(
       );
     }
 
-    /* Only credit when the provider confirms COMPLETED (and, if possible, the amount). */
-    const ts = new Date();
-    const events = [...((deposit.events ?? []) as Record<string, unknown>[])];
-    events.push({
-      id: `${deposit.id}_ev_${ts.getTime()}`,
+    /* Only credit when the provider confirms COMPLETED. The settlement helper
+       re-checks the pending status inside a transaction, credits the wallet,
+       writes the customer-facing transaction and posts the balanced journal. */
+    const result = await settleDeposit({
+      depositId: deposit.id,
+      provider: "paypal",
+      actor: "paypal:capture",
       label: "Payment confirmed",
-      description: `PayPal capture ${capture.captureId?.slice(0, 12)}… confirmed and wallet credited.`,
-      timestamp: ts.toISOString(),
-      status: "done",
+      description: `PayPal capture ${capture.captureId.slice(0, 12)}… confirmed and wallet credited.`,
+      providerReference: capture.captureId,
     });
 
-    await prisma.$transaction(async (tx) => {
-      const res = await tx.deposit.updateMany({
-        where: { id: deposit.id, status: "pending" },
-        data: { status: "completed", completedAt: ts, events: events as Prisma.InputJsonValue },
-      });
-      if (res.count === 0) throw new Error("concurrent_update");
-      await tx.wallet.update({
-        where: { userId_wallet: { userId: user.id, wallet: "deposit" } },
-        data: { balance: { increment: Number(deposit.amount) } },
-      });
-      await tx.transaction.create({
-        data: {
-          reference: deposit.reference,
-          userId: user.id,
-          type: "deposit",
-          status: "successful",
-          direction: "incoming",
-          amount: Number(deposit.amount),
-          fee: 0,
-          netAmount: Number(deposit.amount),
-          wallet: "deposit",
-          description: "PayPal deposit confirmed",
-          counterparty: "PayPal",
-          depositId: deposit.id,
-          createdAt: deposit.createdAt,
-          events: events as Prisma.InputJsonValue,
-        },
-      });
-      await tx.notification.create({
-        data: {
-          userId: user.id,
-          category: "transaction",
-          title: "Deposit confirmed",
-          message: `Your PayPal deposit of KES ${Number(deposit.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} has been confirmed.`,
-          actionUrl: "/records",
-          actionLabel: "View record",
-        },
-      });
-    });
+    if (!result.settled && result.deposit?.status !== "completed") {
+      return fail("This deposit could not be confirmed. Please contact support.", "capture_failed", undefined, 409);
+    }
 
-    const fresh = await prisma.deposit.findFirst({ where: { id: deposit.id } });
-    return ok({ done: true as const, deposit: fresh ?? deposit });
+    return ok({ done: true as const, deposit: result.deposit ?? deposit });
   } catch (error) {
-    if (String(error).includes("concurrent_update")) return fail("This deposit was already confirmed.", "already_reviewed", undefined, 409);
     return serverError(error);
   }
 }

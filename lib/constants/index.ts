@@ -288,6 +288,7 @@ export const DASHBOARD_NAV = [
   { label: "Team", href: "/team", icon: Network },
   { label: "Rewards", href: "/dashboard/rewards", icon: Gift },
   { label: "Records", href: "/records", icon: ClipboardList },
+  { label: "Statements", href: "/statements", icon: FileText },
   { label: "Support", href: "/support", icon: LifeBuoy },
   { label: "Profile & Security", href: "/profile", icon: ShieldCheck },
 ];

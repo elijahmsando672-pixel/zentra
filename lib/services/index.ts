@@ -9,6 +9,7 @@ export * from "@/lib/services/withdrawals";
 export * from "@/lib/services/team";
 export * from "@/lib/services/rewards";
 export * from "@/lib/services/records";
+export * from "@/lib/services/statements";
 export * from "@/lib/services/notifications";
 export * from "@/lib/services/announcements";
 export * from "@/lib/services/support";

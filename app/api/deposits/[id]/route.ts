@@ -3,6 +3,7 @@ import { ok, notFound, unauthorized, serverError } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapDeposit } from "@/lib/server/mappers";
 import { runDueJobs } from "@/lib/server/engine";
+import { settleDeposit } from "@/lib/server/deposit-settlement";
 import { isMpesaLiveConfigured, queryMpesaStk } from "@/lib/server/payments";
 import { Prisma } from "@prisma/client";
 
@@ -47,34 +48,12 @@ export async function GET(
             status: settled ? "done" : "current",
           });
           if (settled) {
-            await prisma.$transaction(async (tx) => {
-              const changed = await tx.deposit.updateMany({
-                where: { id: deposit.id, status: { in: ["pending", "initiated"] } },
-                data: { status: "completed", completedAt: ts, events: events as Prisma.InputJsonValue },
-              });
-              if (changed.count === 0) return;
-              await tx.wallet.update({
-                where: { userId_wallet: { userId: user.id, wallet: "deposit" } },
-                data: { balance: { increment: Number(deposit.amount) } },
-              });
-              await tx.transaction.create({
-                data: {
-                reference: deposit.reference,
-                userId: user.id,
-                type: "deposit",
-                status: "successful",
-                direction: "incoming",
-                amount: Number(deposit.amount),
-                fee: 0,
-                netAmount: Number(deposit.amount),
-                wallet: "deposit",
-                description: `M-Pesa deposit from ${deposit.phone.replace(/(\d{4})\d{3}(\d{3})/, "$1***$2")}`,
-                counterparty: "Safaricom M-Pesa",
-                depositId: deposit.id,
-                createdAt: deposit.createdAt,
-                events: events as Prisma.InputJsonValue,
-                },
-              });
+            await settleDeposit({
+              depositId: deposit.id,
+              provider: "mpesa",
+              actor: "system:provider-verification",
+              label: "Payment confirmed",
+              description: "M-Pesa receipt confirmed and wallet credited.",
             });
           } else {
             await prisma.deposit.updateMany({

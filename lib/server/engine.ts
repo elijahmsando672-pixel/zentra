@@ -2,6 +2,14 @@ import { prisma } from "@/lib/server/prisma";
 import { generateReference } from "@/lib/utils";
 import { Prisma } from "@prisma/client";
 import { isMpesaLiveConfigured } from "@/lib/server/payments";
+import {
+  earningEntries,
+  postJournal,
+  toCents,
+  withdrawalPaidEntries,
+} from "@/lib/server/ledger";
+import { settleDeposit } from "@/lib/server/deposit-settlement";
+import { recordPortfolioSnapshot } from "@/lib/server/portfolio";
 import type { Withdrawal as PrismaWithdrawal, PayoutAccount as PrismaPayoutAccount } from "@prisma/client";
 
 const mask = (phone: string) => phone.replace(/(\d{4})\d{3}(\d{3})/, "$1***$2");
@@ -39,9 +47,9 @@ async function settleDeposits(userId: string) {
     const amount = num(d.amount);
     const willFail = amount % 13 === 0 || amount % 17 === 3;
     const ts = new Date();
-    const events = [...((d.events ?? []) as Event[])];
 
     if (willFail) {
+      const events = [...((d.events ?? []) as Event[])];
       events.push({
         id: `${d.id}_ev_fail`,
         label: "Payment failed",
@@ -60,53 +68,12 @@ async function settleDeposits(userId: string) {
       continue;
     }
 
-    events.push({
-      id: `${d.id}_ev_ok`,
+    await settleDeposit({
+      depositId: d.id,
+      provider: "mpesa",
+      actor: "system:settlement",
       label: "Payment confirmed",
       description: "M-Pesa receipt confirmed and wallet credited.",
-      timestamp: ts.toISOString(),
-      status: "done",
-    });
-
-    await prisma.$transaction(async (tx) => {
-      const res = await tx.deposit.updateMany({
-        where: { id: d.id, status: "pending" },
-        data: { status: "completed", completedAt: ts, events },
-      });
-      if (res.count === 0) return;
-
-      await tx.wallet.update({
-        where: { userId_wallet: { userId, wallet: "deposit" } },
-        data: { balance: { increment: amount } },
-      });
-      await tx.transaction.create({
-        data: {
-          reference: d.reference,
-          userId,
-          type: "deposit",
-          status: "successful",
-          direction: "incoming",
-          amount,
-          fee: 0,
-          netAmount: amount,
-          wallet: "deposit",
-          description: `M-Pesa deposit from ${mask(d.phone)}`,
-          counterparty: "Safaricom M-Pesa",
-          depositId: d.id,
-          createdAt: d.createdAt,
-          events,
-        },
-      });
-      await tx.notification.create({
-        data: {
-          userId,
-          category: "transaction",
-          title: "Deposit confirmed",
-          message: `Your deposit of KES ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} has been confirmed.`,
-          actionUrl: "/records",
-          actionLabel: "View record",
-        },
-      });
     });
   }
 }
@@ -156,7 +123,7 @@ async function processWithdrawal(w: WithdrawalWithAccount) {
   });
 }
 
-async function payWithdrawal(w: WithdrawalWithAccount) {
+async function payWithdrawal(w: WithdrawalWithAccount, accountNumber: string) {
   const ts = new Date();
   const events = ([...((w.events ?? []) as Event[])].filter(
     (e) => e.label !== "Awaiting approval" && e.label !== "Approved"
@@ -206,6 +173,14 @@ async function payWithdrawal(w: WithdrawalWithAccount) {
       where: { userId: w.userId, withdrawalId: w.id },
       data: { status: "successful", events },
     });
+    await postJournal(tx, {
+      type: "withdrawal",
+      description: `Withdrawal ${w.reference} paid out`,
+      actor: "system:settlement",
+      userAccountNumber: accountNumber,
+      reference: `${w.reference}-PAY`,
+      entries: withdrawalPaidEntries(accountNumber, "mpesa", toCents(w.amount), toCents(w.fee)),
+    });
     await tx.notification.create({
       data: {
         userId: w.userId,
@@ -219,14 +194,14 @@ async function payWithdrawal(w: WithdrawalWithAccount) {
   });
 }
 
-async function advanceWithdrawals(userId: string) {
+async function advanceWithdrawals(userId: string, accountNumber: string) {
   const list = await prisma.withdrawal.findMany({
     where: { userId, status: { in: ["pending_approval", "processing"] } },
     include: { payoutAccount: true },
   });
   for (const w of list) {
     const age = Date.now() - w.createdAt.getTime();
-    if (age >= 32_000) await payWithdrawal(w);
+    if (age >= 32_000) await payWithdrawal(w, accountNumber);
     else if (age >= 12_000 && w.status === "pending_approval") await processWithdrawal(w);
   }
 }
@@ -235,7 +210,7 @@ async function advanceWithdrawals(userId: string) {
 /* Earnings — credit each day's schedule entry once it falls due       */
 /* ------------------------------------------------------------------ */
 
-async function accrueEarnings(userId: string) {
+async function accrueEarnings(userId: string, accountNumber: string) {
   const investments = await prisma.investment.findMany({
     where: { userId, status: { in: ["active", "maturing"] } },
     include: { product: true },
@@ -248,47 +223,57 @@ async function accrueEarnings(userId: string) {
     });
 
     for (const entry of due) {
-      const res = await prisma.earningEntry.updateMany({
-        where: { id: entry.id, status: "scheduled" },
-        data: { status: "credited", creditedAt: new Date() },
-      });
-      if (res.count === 0) continue;
-
-      await prisma.wallet.update({
-        where: { userId_wallet: { userId, wallet: "earnings" } },
-        data: { balance: { increment: entry.amount } },
-      });
-      await prisma.investment.update({
-        where: { id: inv.id },
-        data: { earnedToDate: { increment: entry.amount } },
-      });
-
       const ts = new Date();
-      await prisma.transaction.create({
-        data: {
-          reference: generateReference("ERN"),
-          userId,
+      await prisma.$transaction(async (tx) => {
+        const res = await tx.earningEntry.updateMany({
+          where: { id: entry.id, status: "scheduled" },
+          data: { status: "credited", creditedAt: ts },
+        });
+        if (res.count === 0) return;
+
+        await tx.wallet.update({
+          where: { userId_wallet: { userId, wallet: "earnings" } },
+          data: { balance: { increment: entry.amount } },
+        });
+        await tx.investment.update({
+          where: { id: inv.id },
+          data: { earnedToDate: { increment: entry.amount } },
+        });
+
+        await tx.transaction.create({
+          data: {
+            reference: `ERN-${entry.id}`,
+            userId,
+            type: "earning",
+            status: "successful",
+            direction: "incoming",
+            amount: entry.amount,
+            fee: 0,
+            netAmount: entry.amount,
+            wallet: "earnings",
+            description: `Daily earning · ${inv.product.name} · Day ${entry.day}`,
+            counterparty: inv.product.name,
+            productId: inv.productId,
+            createdAt: ts,
+            events: [
+              {
+                id: `${entry.id}_txev`,
+                label: "Earning credited",
+                description: `Day ${entry.day} earning credited.`,
+                timestamp: ts.toISOString(),
+                status: "done",
+              },
+            ],
+          },
+        });
+        await postJournal(tx, {
           type: "earning",
-          status: "successful",
-          direction: "incoming",
-          amount: entry.amount,
-          fee: 0,
-          netAmount: entry.amount,
-          wallet: "earnings",
-          description: `Daily earning · ${inv.product.name} · Day ${entry.day}`,
-          counterparty: inv.product.name,
-          productId: inv.productId,
-          createdAt: ts,
-          events: [
-            {
-              id: `${entry.id}_txev`,
-              label: "Earning credited",
-              description: `Day ${entry.day} earning credited.`,
-              timestamp: ts.toISOString(),
-              status: "done",
-            },
-          ],
-        },
+          description: `${inv.product.name} day ${entry.day} earning for ${inv.reference}`,
+          actor: "system:engine",
+          userAccountNumber: accountNumber,
+          reference: `ERN-${entry.id}`,
+          entries: earningEntries(accountNumber, toCents(entry.amount)),
+        });
       });
     }
 
@@ -300,9 +285,12 @@ async function accrueEarnings(userId: string) {
 
 export async function runDueJobs(userId: string) {
   try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { accountNumber: true } });
+    if (!user) return;
     await settleDeposits(userId);
-    await advanceWithdrawals(userId);
-    await accrueEarnings(userId);
+    await advanceWithdrawals(userId, user.accountNumber);
+    await accrueEarnings(userId, user.accountNumber);
+    await recordPortfolioSnapshot(userId);
   } catch (error) {
     console.error("[engine]", error);
   }

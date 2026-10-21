@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/server/session";
 import { mapInvestment } from "@/lib/server/mappers";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
 import { parsePositiveMoney } from "@/lib/server/money";
+import { investmentEntries, postJournal, toCents } from "@/lib/server/ledger";
+import { getGlobalSettings } from "@/lib/server/settings";
 import { DEMO_TRANSACTION_PIN } from "@/lib/constants";
 
 const DAY = 86_400_000;
@@ -22,6 +24,10 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
+    const settings = await getGlobalSettings();
+    if (settings.maintenanceMode) {
+      return fail("Investments are temporarily paused for maintenance. Please try again later.", "maintenance", undefined, 503);
+    }
     const idempotencyKey = readIdempotencyKey(req);
     if (!idempotencyKey) return fail("A valid Idempotency-Key header is required.", "idempotency_key_required");
     const body = await req.json();
@@ -136,6 +142,14 @@ export async function POST(req: Request) {
           createdAt: now,
           events,
         },
+      });
+      await postJournal(tx, {
+        type: "investment",
+        description: `Investment ${reference} in ${product.name}`,
+        actor: `user:${user.id}`,
+        userAccountNumber: user.accountNumber,
+        reference,
+        entries: investmentEntries(user.accountNumber, toCents(amount)),
       });
       return createdInvestment;
     });

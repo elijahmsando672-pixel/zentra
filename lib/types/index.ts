@@ -217,6 +217,55 @@ export interface Paginated<T> {
   hasMore: boolean;
 }
 
+export interface StatementRow {
+  id: ID;
+  reference: string;
+  type: TransactionType;
+  status: TransactionStatus;
+  description: string;
+  wallet: string;
+  direction: string;
+  createdAt: string;
+  amountCents: number;
+  feeCents: number;
+  netAmountCents: number;
+  creditCents: number | null;
+  debitCents: number | null;
+  balanceCents: number;
+  internal: boolean;
+}
+
+export interface AccountStatement {
+  user: { fullName: string; accountNumber: string; email: string };
+  period: { from: string; to: string };
+  generatedAt: string;
+  currency: string;
+  openingBalanceCents: number;
+  closingBalanceCents: number;
+  totalCreditsCents: number;
+  totalDebitsCents: number;
+  rows: StatementRow[];
+  totalsByType: Array<{ type: TransactionType; count: number; creditsCents: number; debitsCents: number }>;
+  walletBalances: Array<{ wallet: string; balanceCents: number }>;
+  reconciliation: {
+    walletTotalCents: number;
+    ledgerLiabilityCents: number | null;
+    ledgerPostedEntries: number;
+    walletMatchesStatement: boolean;
+    ledgerMatchesWallets: boolean | null;
+    note: string;
+  };
+  notes: string[];
+  previewLimited?: boolean;
+}
+
+export interface StatementQuery {
+  from: string;
+  to: string;
+  types?: TransactionType[];
+  statuses?: TransactionStatus[];
+}
+
 /* ------------------------------------------------------------------ */
 /* Products & investments                                              */
 /* ------------------------------------------------------------------ */

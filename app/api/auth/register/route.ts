@@ -3,6 +3,9 @@ import { prisma } from "@/lib/server/prisma";
 import { ok, fail, serverError } from "@/lib/server/api";
 import { mapUser } from "@/lib/server/mappers";
 import { normalizePhoneKE } from "@/lib/utils";
+import { getGlobalSettings } from "@/lib/server/settings";
+import { consumeRateLimit, requestIp } from "@/lib/server/rate-limit";
+import { isUniqueConstraintError } from "@/lib/server/idempotency";
 
 const DEFAULT_WALLETS = [
   { wallet: "deposit" as const, locked: false },
@@ -16,6 +19,17 @@ const DEFAULT_WALLETS = [
 
 export async function POST(req: Request) {
   try {
+    const settings = await getGlobalSettings();
+    if (settings.maintenanceMode || !settings.registrationsOpen) {
+      return fail("New registrations are temporarily paused. Please try again later.", "registrations_closed", undefined, 503);
+    }
+    const limit = await consumeRateLimit(`register:ip:${requestIp(req)}`, 10, 60 * 60_000);
+    if (!limit.allowed) {
+      const response = fail("Too many registration attempts. Please try again later.", "rate_limited", undefined, 429);
+      response.headers.set("Retry-After", String(limit.retryAfterSeconds));
+      return response;
+    }
+
     const body = await req.json();
     const fullName = String(body.fullName ?? "").trim();
     const phone = normalizePhoneKE(String(body.phone ?? ""));
@@ -57,37 +71,47 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const accountNumber = `NX-${101000 + count * 7}`;
+    let accountNumber = `NX-${101000 + count * 7}`;
     const now = new Date();
 
-    const user = await prisma.user.create({
-      data: {
-        accountNumber,
-        fullName,
-        phone,
-        email,
-        passwordHash,
-        joinedAt: now,
-        referralCode,
-        referredBy: sponsor ? `${sponsor.fullName} (${sponsor.accountNumber})` : null,
-        rank: "member",
-        status: "pending",
-        riskLevel: "low",
-        lastLoginAt: now,
-        lastLoginIp: "197.232.91.14",
-        device: "This device",
-        notificationPreferences: {
-          email: true,
-          sms: true,
-          push: true,
-          withdrawals: true,
-          earnings: true,
-          team: true,
-          promotions: true,
-        },
-        wallets: { create: DEFAULT_WALLETS },
-      },
-    });
+    let user;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        user = await prisma.user.create({
+          data: {
+            accountNumber,
+            fullName,
+            phone,
+            email,
+            passwordHash,
+            joinedAt: now,
+            referralCode,
+            referredBy: sponsor ? `${sponsor.fullName} (${sponsor.accountNumber})` : null,
+            rank: "member",
+            status: "pending",
+            riskLevel: "low",
+            lastLoginAt: now,
+            lastLoginIp: "197.232.91.14",
+            device: "This device",
+            notificationPreferences: {
+              email: true,
+              sms: true,
+              push: true,
+              withdrawals: true,
+              earnings: true,
+              team: true,
+              promotions: true,
+            },
+            wallets: { create: DEFAULT_WALLETS },
+          },
+        });
+        break;
+      } catch (error) {
+        if (!isUniqueConstraintError(error) || attempt === 5) throw error;
+        accountNumber = `NX-${101000 + count * 7 + attempt + 1}-${Math.floor(Math.random() * 90 + 10)}`;
+      }
+    }
+    if (!user) return serverError(new Error("Unable to allocate a unique account number."));
 
     return ok({ user: mapUser(user), verificationRequired: true as const });
   } catch (error) {

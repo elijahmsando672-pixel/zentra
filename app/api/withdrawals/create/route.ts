@@ -4,15 +4,14 @@ import { fail, ok, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapWithdrawal } from "@/lib/server/mappers";
 import {
-  DAILY_WITHDRAWAL_LIMIT,
   DEMO_TRANSACTION_PIN,
-  MAX_WITHDRAWAL,
-  MIN_WITHDRAWAL,
   WITHDRAWAL_FEE_FLAT,
   WITHDRAWAL_FEE_PERCENT,
 } from "@/lib/constants";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
 import { parsePositiveMoney } from "@/lib/server/money";
+import { postJournal, toCents, withdrawalHoldEntries } from "@/lib/server/ledger";
+import { getGlobalSettings } from "@/lib/server/settings";
 import type { WalletType } from "@/lib/types";
 
 const round2 = (n: number) => Number(n.toFixed(2));
@@ -27,6 +26,11 @@ export async function POST(req: Request) {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
 
+    const settings = await getGlobalSettings();
+    if (settings.maintenanceMode || !settings.withdrawalsEnabled) {
+      return fail("Withdrawals are temporarily paused. Please try again later.", "withdrawals_disabled", undefined, 503);
+    }
+
     const idempotencyKey = readIdempotencyKey(req);
     if (!idempotencyKey) {
       return fail("A valid Idempotency-Key header is required.", "idempotency_key_required");
@@ -40,9 +44,9 @@ export async function POST(req: Request) {
 
     if (!parsedAmount) return fail("Enter a valid amount with no more than two decimal places.", "invalid_amount");
     const amount = parsedAmount.value;
-    if (amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL) {
+    if (amount < settings.minWithdrawal || amount > settings.maxWithdrawal) {
       return fail(
-        `Withdrawals must be between KES ${MIN_WITHDRAWAL.toLocaleString()} and KES ${MAX_WITHDRAWAL.toLocaleString()}.`,
+        `Withdrawals must be between KES ${settings.minWithdrawal.toLocaleString()} and KES ${settings.maxWithdrawal.toLocaleString()}.`,
         "out_of_range"
       );
     }
@@ -137,8 +141,8 @@ export async function POST(req: Request) {
           _sum: { amount: true },
         });
         const amountToday = Number(totalToday._sum.amount ?? 0);
-        if (amountToday + amount > DAILY_WITHDRAWAL_LIMIT) {
-          return { kind: "daily_limit" as const, remaining: Math.max(0, DAILY_WITHDRAWAL_LIMIT - amountToday) };
+        if (amountToday + amount > settings.dailyWithdrawalLimit) {
+          return { kind: "daily_limit" as const, remaining: Math.max(0, settings.dailyWithdrawalLimit - amountToday) };
         }
 
         const debit = await tx.wallet.updateMany({
@@ -209,6 +213,15 @@ export async function POST(req: Request) {
             actionUrl: "/wallet",
             actionLabel: "View wallet",
           },
+        });
+
+        await postJournal(tx, {
+          type: "withdrawal",
+          description: `Withdrawal ${reference} placed on hold for review`,
+          actor: `user:${user.id}`,
+          userAccountNumber: user.accountNumber,
+          reference: `${reference}-HOLD`,
+          entries: withdrawalHoldEntries(user.accountNumber, wallet, parsedAmount.cents),
         });
 
         return { kind: "created" as const, withdrawal };

@@ -63,6 +63,7 @@ const COMMANDS: { label: string; href: string; hint: string }[] = [
   { label: "Team rewards", href: "/team/rewards", hint: "Commissions" },
   { label: "Rewards & bonuses", href: "/dashboard/rewards", hint: "Bonuses" },
   { label: "Transaction records", href: "/records", hint: "History" },
+  { label: "Account statements", href: "/statements", hint: "CSV & PDF" },
   { label: "Support", href: "/support", hint: "Help" },
   { label: "Open a ticket", href: "/support/new", hint: "Support" },
   { label: "Profile", href: "/profile", hint: "Account" },

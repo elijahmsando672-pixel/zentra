@@ -3,7 +3,7 @@ import { fail, ok, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapDeposit } from "@/lib/server/mappers";
 import { runDueJobs } from "@/lib/server/engine";
-import { MAX_DEPOSIT, MIN_DEPOSIT, PAYMENT_METHOD_META } from "@/lib/constants";
+import { PAYMENT_METHOD_META } from "@/lib/constants";
 import {
   createPaypalOrder,
   getPaymentConfig,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/payments";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
 import { parsePositiveMoney } from "@/lib/server/money";
+import { getGlobalSettings } from "@/lib/server/settings";
 import { normalizePhoneKE } from "@/lib/utils";
 import type { PaymentMethod } from "@/lib/types";
 
@@ -90,6 +91,11 @@ export async function POST(req: Request) {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
 
+    const settings = await getGlobalSettings();
+    if (settings.maintenanceMode || !settings.depositsEnabled) {
+      return fail("Deposits are temporarily paused. Please try again later.", "deposits_disabled", undefined, 503);
+    }
+
     const idempotencyKey = readIdempotencyKey(req);
     if (!idempotencyKey) {
       return fail("A valid Idempotency-Key header is required.", "idempotency_key_required");
@@ -137,14 +143,14 @@ export async function POST(req: Request) {
         phone: "Use a format like 0712 345 678.",
       });
     }
-    if (amount < MIN_DEPOSIT) {
-      return fail(`The minimum deposit is KES ${MIN_DEPOSIT.toLocaleString()}.`, "below_min", {
-        amount: `Minimum KES ${MIN_DEPOSIT.toLocaleString()}.`,
+    if (amount < settings.minDeposit) {
+      return fail(`The minimum deposit is KES ${settings.minDeposit.toLocaleString()}.`, "below_min", {
+        amount: `Minimum KES ${settings.minDeposit.toLocaleString()}.`,
       });
     }
-    if (amount > MAX_DEPOSIT) {
-      return fail(`The maximum deposit is KES ${MAX_DEPOSIT.toLocaleString()}.`, "above_max", {
-        amount: `Maximum KES ${MAX_DEPOSIT.toLocaleString()}.`,
+    if (amount > settings.maxDeposit) {
+      return fail(`The maximum deposit is KES ${settings.maxDeposit.toLocaleString()}.`, "above_max", {
+        amount: `Maximum KES ${settings.maxDeposit.toLocaleString()}.`,
       });
     }
     if (method === "paypal" && !providerReference) {

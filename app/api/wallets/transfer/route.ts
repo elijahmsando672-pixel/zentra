@@ -3,6 +3,7 @@ import { fail, ok, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
 import { parsePositiveMoney } from "@/lib/server/money";
+import { postJournal, toCents, transferEntries } from "@/lib/server/ledger";
 import { WALLET_META } from "@/lib/constants";
 import type { WalletType } from "@/lib/types";
 
@@ -107,6 +108,14 @@ export async function POST(req: Request) {
               },
             ],
           },
+        });
+        await postJournal(tx, {
+          type: "transfer",
+          description,
+          actor: `user:${user.id}`,
+          userAccountNumber: user.accountNumber,
+          reference,
+          entries: transferEntries(user.accountNumber, from, to, parsedAmount.cents),
         });
         return { kind: "done" as const };
       });
