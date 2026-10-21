@@ -1,0 +1,10 @@
+{
+  "description": "Zentra is a premium investment and rewards platform that enables users to explore investment plans, track earnings, and manage team rewards seamlessly.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
