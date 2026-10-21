@@ -24,7 +24,27 @@ export function notFound(message = "We could not find that.") {
   return fail(message, "not_found", undefined, 404);
 }
 
+export class InvalidJsonError extends Error {
+  constructor() {
+    super("The request body must be valid JSON.");
+    this.name = "InvalidJsonError";
+  }
+}
+
+// Reads a required JSON body. A malformed body is a client error, so it is
+// surfaced as a 400 instead of bubbling up to serverError as a 500.
+export async function readJson(req: Request) {
+  try {
+    return await req.json();
+  } catch {
+    throw new InvalidJsonError();
+  }
+}
+
 export function serverError(error: unknown) {
+  if (error instanceof InvalidJsonError) {
+    return fail(error.message, "invalid_json", undefined, 400);
+  }
   console.error("[api]", error);
   return fail("Something went wrong. Please try again.", "server_error", undefined, 500);
 }

@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { DEMO_TRANSACTION_PIN } from "@/lib/constants";
 
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json();
+    const body = await readJson(req);
     const pin = String(body.pin ?? "");
 
     const valid =

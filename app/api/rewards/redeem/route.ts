@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapBonusAward } from "@/lib/server/mappers";
 
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json().catch(() => ({}));
+    const body = await readJson(req).catch(() => ({}));
     const code = String(body.code ?? "").trim().toUpperCase();
     if (!code) return fail("Enter a coupon code to continue.", "not_found", { code: "Required." });
 

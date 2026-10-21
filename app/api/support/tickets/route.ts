@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapSupportTicket } from "@/lib/server/mappers";
 import type { SupportTicket, TicketPriority } from "@/lib/types";
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json().catch(() => ({}));
+    const body = await readJson(req).catch(() => ({}));
     const subject = String(body.subject ?? "").trim();
     const message = String(body.message ?? "").trim();
     const category = (body.category ?? "other") as SupportTicket["category"];

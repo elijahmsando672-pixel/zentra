@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError } from "@/lib/server/api";
 import { isMpesaLiveConfigured, queryMpesaStk } from "@/lib/server/payments";
 import { settleDeposit } from "@/lib/server/deposit-settlement";
 import { Prisma } from "@prisma/client";
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       return fail("M-Pesa is not configured for this environment.", "not_configured", undefined, 404);
     }
 
-    const body = await req.json().catch(() => null);
+    const body = await readJson(req).catch(() => null);
     const callback: StkCallback | undefined = body?.Body?.stkCallback;
     const checkoutRequestId = String(callback?.CheckoutRequestID ?? "").trim();
     if (!checkoutRequestId) return fail("Malformed callback payload.", "invalid_payload");

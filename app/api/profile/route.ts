@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapUser } from "@/lib/server/mappers";
 
@@ -17,7 +17,7 @@ export async function PATCH(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json();
+    const body = await readJson(req);
 
     const data: Record<string, unknown> = {};
     if (typeof body.fullName === "string" && body.fullName.trim()) {

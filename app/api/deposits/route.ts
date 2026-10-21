@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { fail, ok, serverError, unauthorized } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapDeposit } from "@/lib/server/mappers";
 import { runDueJobs } from "@/lib/server/engine";
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       return fail("A valid Idempotency-Key header is required.", "idempotency_key_required");
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const phone = normalizePhoneKE(String(body.phone ?? ""));
     const parsedAmount = parsePositiveMoney(body.amount);
     const method: PaymentMethod = body.method === "paypal" ? "paypal" : "mpesa";

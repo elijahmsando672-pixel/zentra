@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { fail, ok, unauthorized, serverError, notFound } from "@/lib/server/api";
+import { fail, notFound, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getAdminStaff } from "@/lib/server/admin-session";
 import {
   mapAuditLog, mapCoupon, mapDeposit, mapInvestment, mapLedgerJournal,
@@ -141,7 +141,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segments: strin
 export async function POST(req: Request, ctx: { params: Promise<{ segments: string[] }> }) {
   try {
     const staff=await getAdminStaff(); if(!staff) return unauthorized();
-    const parts=pathOf(await ctx.params); const body=await req.json().catch(()=>({})); const id=parts[1] ?? String(body.id ?? "");
+    const parts=pathOf(await ctx.params); const body=await readJson(req).catch(()=>({})); const id=parts[1] ?? String(body.id ?? "");
     if(!canAccess(staff.role,parts[0]??"",true)) return fail("Your staff role cannot make changes in this area.","insufficient_permissions",undefined,403);
     const reason=String(body.reason ?? "").trim(); const now=new Date(); const ip=requestIp(req);
     const audit=async(action:string,entityType:string,entityId:string,why:string,oldValue?:unknown,newValue?:unknown)=>prisma.auditLog.create({data:{actor:staff.fullName,actorRole:staff.role,action,entityType,entityId,reason:why,oldValue:oldValue===undefined?null:JSON.stringify(oldValue),newValue:newValue===undefined?null:JSON.stringify(newValue),ip,at:now}});

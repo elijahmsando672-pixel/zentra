@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { mapInvestment } from "@/lib/server/mappers";
 import { isUniqueConstraintError, operationReference, readIdempotencyKey } from "@/lib/server/idempotency";
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     }
     const idempotencyKey = readIdempotencyKey(req);
     if (!idempotencyKey) return fail("A valid Idempotency-Key header is required.", "idempotency_key_required");
-    const body = await req.json();
+    const body = await readJson(req);
     const productId = String(body.productId ?? "");
     const parsedAmount = parsePositiveMoney(body.amount);
     if (!parsedAmount) return fail("Enter a valid amount with no more than two decimal places.", "invalid_amount");

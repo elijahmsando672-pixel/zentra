@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 
 export async function PATCH(
@@ -10,7 +10,7 @@ export async function PATCH(
     const user = await getCurrentUser();
     if (!user) return unauthorized();
     const { id } = await params;
-    const body = await req.json();
+    const body = await readJson(req);
 
     const account = await prisma.payoutAccount.findFirst({ where: { id, userId: user.id } });
     if (!account) return fail("Payout account not found.", "not_found");

@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError } from "@/lib/server/api";
 import { createSession } from "@/lib/server/session";
 import { normalizePhoneKE } from "@/lib/utils";
 import { consumeRateLimit, requestIp } from "@/lib/server/rate-limit";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await readJson(req);
     const raw = String(body.target ?? "").trim();
     const code = String(body.code ?? "").trim();
     const key = raw.includes("@") ? raw.toLowerCase() : normalizePhoneKE(raw);

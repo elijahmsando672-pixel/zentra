@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError } from "@/lib/server/api";
 import { mapUser } from "@/lib/server/mappers";
 import { normalizePhoneKE } from "@/lib/utils";
 import { getGlobalSettings } from "@/lib/server/settings";
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       return response;
     }
 
-    const body = await req.json();
+    const body = await readJson(req);
     const fullName = String(body.fullName ?? "").trim();
     const phone = normalizePhoneKE(String(body.phone ?? ""));
     const email = String(body.email ?? "").trim().toLowerCase();

@@ -1,12 +1,12 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/prisma";
-import { fail, ok, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError } from "@/lib/server/api";
 import { createAdminSession } from "@/lib/server/admin-session";
 import { consumeRateLimit, requestIp } from "@/lib/server/rate-limit";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await readJson(req).catch(() => ({}));
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
     const ip = requestIp(req);

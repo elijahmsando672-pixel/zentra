@@ -7,6 +7,518 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                      String             @id @default(cuid())
+  accountNumber           String             @unique
+  fullName                String
+  phone                   String             @unique
+  email                   String             @unique
+  passwordHash            String
+  joinedAt                DateTime           @default(now())
+  phoneVerified           Boolean            @default(false)
+  emailVerified           Boolean            @default(false)
+  kycStatus               KycStatus          @default(not_started)
+  verificationStatus      VerificationStatus @default(unverified)
+  referralCode            String             @unique
+  referredBy              String?
+  rank                    RankKey            @default(member)
+  status                  SecurityStatus     @default(active)
+  riskLevel               RiskLevel          @default(low)
+  twoFactorEnabled        Boolean            @default(false)
+  hasTransactionPin       Boolean            @default(false)
+  transactionPinHash      String?
+  profileCompletion       Int                @default(40)
+  lastLoginAt             DateTime           @default(now())
+  lastLoginIp             String             @default("197.232.91.14")
+  device                  String             @default("This device")
+  notificationPreferences Json               @default("{}")
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  bonusAwards             BonusAward[]       @relation("BonusAwardOwner")
+  deposits                Deposit[]
+  investments             Investment[]
+  notifications           Notification[]
+  payoutAccounts          PayoutAccount[]
+  portfolio               PortfolioPoint[]
+  referralActivities      ReferralActivity[] @relation("ReferralActivityOwner")
+  sessions                Session[]
+  supportTickets          SupportTicket[]
+  teamMembers             TeamMember[]       @relation("TeamOwner")
+  teamRewards             TeamReward[]       @relation("TeamRewardOwner")
+  transactions            Transaction[]
+  wallets                 Wallet[]
+  withdrawals             Withdrawal[]
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  userId     String
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  target     String
+  purpose    String
+  code       String
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+}
+
+model Product {
+  id                    String        @id @default(cuid())
+  slug                  String        @unique
+  name                  String
+  tagline               String
+  description           String
+  tier                  ProductTier
+  status                ProductStatus @default(active)
+  featured              Boolean       @default(false)
+  badge                 ProductBadge?
+  minEntry              Decimal       @db.Decimal(14, 2)
+  maxEntry              Decimal       @db.Decimal(14, 2)
+  stepAmount            Decimal       @db.Decimal(14, 2)
+  durationDays          Int
+  dailyRate             Decimal       @db.Decimal(6, 2)
+  dailyEarningAtEntry   Decimal       @db.Decimal(14, 2)
+  totalPayoutMultiplier Decimal       @db.Decimal(6, 3)
+  capacityTotal         Decimal       @db.Decimal(14, 2)
+  capacityUsed          Decimal       @db.Decimal(14, 2)
+  icon                  String
+  terms                 Json
+  eligibility           Json
+  faq                   Json
+  riskNote              String
+  version               Int           @default(1)
+  createdAt             DateTime      @default(now())
+  investments           Investment[]
+}
+
+model Wallet {
+  id        String     @id @default(cuid())
+  userId    String
+  wallet    WalletType
+  balance   Decimal    @default(0) @db.Decimal(14, 2)
+  locked    Boolean    @default(false)
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wallet])
+}
+
+model Investment {
+  id                String           @id @default(cuid())
+  reference         String           @unique
+  userId            String
+  productId         String
+  amount            Decimal          @db.Decimal(14, 2)
+  dailyEarning      Decimal          @db.Decimal(14, 2)
+  projectedEarnings Decimal          @db.Decimal(14, 2)
+  projectedPayout   Decimal          @db.Decimal(14, 2)
+  earnedToDate      Decimal          @default(0) @db.Decimal(14, 2)
+  startDate         DateTime
+  maturityDate      DateTime
+  status            InvestmentStatus @default(active)
+  wallet            WalletType       @default(investment)
+  createdAt         DateTime         @default(now())
+  earnings          EarningEntry[]
+  product           Product          @relation(fields: [productId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model EarningEntry {
+  id           String        @id @default(cuid())
+  investmentId String
+  day          Int
+  date         DateTime
+  amount       Decimal       @db.Decimal(14, 2)
+  status       EarningStatus @default(scheduled)
+  creditedAt   DateTime?
+  investment   Investment    @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+
+  @@unique([investmentId, day])
+}
+
+model Deposit {
+  id                  String        @id @default(cuid())
+  reference           String        @unique
+  userId              String
+  amount              Decimal       @db.Decimal(14, 2)
+  fee                 Decimal       @default(0) @db.Decimal(14, 2)
+  wallet              WalletType    @default(deposit)
+  phone               String
+  status              DepositStatus @default(pending)
+  checkoutRequestId   String?
+  merchantRequestId   String?
+  failureReason       String?
+  events              Json          @default("[]")
+  createdAt           DateTime      @default(now())
+  completedAt         DateTime?
+  method              PaymentMethod @default(mpesa)
+  providerReference   String?
+  providerApprovalUrl String?
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model PayoutAccount {
+  id          String         @id @default(cuid())
+  userId      String
+  nickname    String
+  phone       String
+  provider    PayoutProvider @default(mpesa)
+  isPrimary   Boolean        @default(false)
+  verified    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  lastUsedAt  DateTime?
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawals Withdrawal[]
+
+  @@index([userId])
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  reference       String           @unique
+  userId          String
+  amount          Decimal          @db.Decimal(14, 2)
+  fee             Decimal          @db.Decimal(14, 2)
+  netAmount       Decimal          @db.Decimal(14, 2)
+  wallet          WalletType       @default(earnings)
+  payoutAccountId String
+  status          WithdrawalStatus @default(pending_approval)
+  riskScore       Int              @default(0)
+  riskLevel       RiskLevel        @default(low)
+  pinVerified     Boolean          @default(false)
+  otpVerified     Boolean          @default(false)
+  approvals       Json             @default("[]")
+  events          Json             @default("[]")
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  paidAt          DateTime?
+  payoutAccount   PayoutAccount    @relation(fields: [payoutAccountId], references: [id])
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model Transaction {
+  id           String               @id @default(cuid())
+  reference    String               @unique
+  userId       String
+  type         TransactionType
+  status       TransactionStatus
+  direction    TransactionDirection
+  amount       Decimal              @db.Decimal(14, 2)
+  fee          Decimal              @default(0) @db.Decimal(14, 2)
+  netAmount    Decimal              @db.Decimal(14, 2)
+  wallet       WalletType
+  description  String
+  counterparty String?
+  productId    String?
+  depositId    String?
+  withdrawalId String?
+  events       Json                 @default("[]")
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+}
+
+model PortfolioPoint {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  portfolio Decimal  @db.Decimal(14, 2)
+  earnings  Decimal  @db.Decimal(14, 2)
+  invested  Decimal  @db.Decimal(14, 2)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  userId      String
+  category    NotificationCategory
+  title       String
+  message     String
+  read        Boolean              @default(false)
+  actionUrl   String?
+  actionLabel String?
+  createdAt   DateTime             @default(now())
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model TeamMember {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  memberUserId       String?
+  fullName           String
+  level              Int
+  parentName         String
+  joinedAt           DateTime
+  active             Boolean  @default(true)
+  verified           Boolean  @default(false)
+  teamVolume         Decimal  @default(0) @db.Decimal(14, 2)
+  rewardContribution Decimal  @default(0) @db.Decimal(14, 2)
+  downlineCount      Int      @default(0)
+  maskedPhone        String
+  createdAt          DateTime @default(now())
+  owner              User     @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+model TeamReward {
+  id             String           @id @default(cuid())
+  reference      String           @unique
+  ownerId        String
+  sourceMember   String
+  level          Int
+  sourceType     TeamRewardSource
+  amount         Decimal          @db.Decimal(14, 2)
+  commissionRate Decimal          @db.Decimal(6, 2)
+  status         RewardStatus     @default(pending)
+  reversedReason String?
+  createdAt      DateTime         @default(now())
+  owner          User             @relation("TeamRewardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, status])
+}
+
+model CommissionRule {
+  id        String   @id @default(cuid())
+  name      String
+  level     Int
+  percent   Decimal  @db.Decimal(6, 2)
+  minRank   RankKey
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model ReferralActivity {
+  id         String            @id @default(cuid())
+  ownerId    String
+  memberName String
+  level      Int
+  event      ReferralEventType
+  detail     String
+  amount     Decimal?          @db.Decimal(14, 2)
+  at         DateTime          @default(now())
+  owner      User              @relation("ReferralActivityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, at])
+}
+
+model BonusAward {
+  id          String       @id @default(cuid())
+  reference   String       @unique
+  ownerId     String
+  title       String
+  description String
+  amount      Decimal      @db.Decimal(14, 2)
+  status      RewardStatus @default(available)
+  wallet      WalletType   @default(bonus)
+  source      String
+  awardedAt   DateTime     @default(now())
+  expiresAt   DateTime?
+  campaignId  String?
+  createdAt   DateTime     @default(now())
+  owner       User         @relation("BonusAwardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, status])
+}
+
+model Coupon {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  title         String
+  description   String
+  type          CouponType
+  value         Decimal    @db.Decimal(14, 2)
+  minAmount     Decimal?   @db.Decimal(14, 2)
+  maxRedemption Int?
+  redemptions   Int        @default(0)
+  expiresAt     DateTime
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+}
+
+model Campaign {
+  id           String         @id @default(cuid())
+  name         String
+  description  String
+  startsAt     DateTime
+  endsAt       DateTime
+  status       CampaignStatus @default(scheduled)
+  audience     String
+  awardsIssued Int            @default(0)
+  budget       Decimal        @db.Decimal(14, 2)
+  spent        Decimal        @default(0) @db.Decimal(14, 2)
+  accent       CampaignAccent
+  createdAt    DateTime       @default(now())
+}
+
+model SupportTicket {
+  id           String            @id @default(cuid())
+  reference    String            @unique
+  userId       String
+  subject      String
+  category     SupportCategory
+  status       TicketStatus      @default(open)
+  priority     TicketPriority    @default(normal)
+  slaDueAt     DateTime
+  lastReplyBy  TicketAuthorRole?
+  satisfaction Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  messages     SupportMessage[]
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model SupportMessage {
+  id          String           @id @default(cuid())
+  ticketId    String
+  author      String
+  authorRole  TicketAuthorRole
+  body        String
+  attachments Json             @default("[]")
+  at          DateTime         @default(now())
+  ticket      SupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model AdminStaff {
+  id           String         @id @default(cuid())
+  fullName     String
+  email        String         @unique
+  role         Role
+  status       String         @default("active")
+  lastActiveAt DateTime       @default(now())
+  permissions  Json           @default("[]")
+  passwordHash String?
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String     @id @default(cuid())
+  token     String     @unique
+  staffId   String
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+  revokedAt DateTime?
+  staff     AdminStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      String
+  actorRole  Role
+  action     String
+  entityType String
+  entityId   String
+  reason     String
+  oldValue   String?
+  newValue   String?
+  ip         String
+  at         DateTime @default(now())
+
+  @@index([at])
+}
+
+model AuthRateLimit {
+  key          String   @id
+  windowEndsAt DateTime
+  count        Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@index([windowEndsAt])
+}
+
+model RiskFlag {
+  id                String         @id @default(cuid())
+  userAccountNumber String
+  userName          String
+  rule              String
+  level             RiskLevel
+  detail            String
+  status            RiskFlagStatus @default(open)
+  createdAt         DateTime       @default(now())
+  resolvedAt        DateTime?
+  resolution        String?
+
+  @@index([status])
+}
+
+model LedgerJournal {
+  id                String          @id @default(cuid())
+  reference         String          @unique
+  type              TransactionType
+  description       String
+  totalAmount       Decimal         @db.Decimal(14, 2)
+  actor             String
+  userAccountNumber String?
+  immutable         Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  entries           LedgerEntry[]
+}
+
+model LedgerEntry {
+  id          String        @id @default(cuid())
+  journalId   String
+  account     String
+  accountCode String
+  direction   String
+  amount      Decimal       @db.Decimal(14, 2)
+  currency    String        @default("KES")
+  journal     LedgerJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
+}
+
+model SystemSetting {
+  key   String @id
+  value Json
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  severity    String
+  audience    String   @default("All members")
+  publishedAt DateTime @default(now())
+}
+
+model ReconciliationReview {
+  id         String   @id @default(cuid())
+  dayKey     String   @unique
+  reviewer   String
+  reviewedAt DateTime @default(now())
+}
+
 enum KycStatus {
   not_started
   pending
@@ -74,26 +586,26 @@ enum InvestmentStatus {
 enum EarningStatus {
   scheduled
   credited
-  skipped
   missed
+  skipped
 }
 
 enum DepositStatus {
-  initiated
   pending
   completed
   failed
   cancelled
+  initiated
 }
 
 enum WithdrawalStatus {
   pending_approval
-  approved
   processing
   paid
   rejected
   failed
   cancelled
+  approved
 }
 
 enum TransactionType {
@@ -235,535 +747,4 @@ enum RiskFlagStatus {
   reviewing
   cleared
   escalated
-}
-
-model User {
-  id                      String       @id @default(cuid())
-  accountNumber           String       @unique
-  fullName                String
-  phone                   String       @unique
-  email                   String       @unique
-  passwordHash            String
-  joinedAt                DateTime     @default(now())
-  phoneVerified           Boolean      @default(false)
-  emailVerified           Boolean      @default(false)
-  kycStatus               KycStatus    @default(not_started)
-  verificationStatus      VerificationStatus @default(unverified)
-  referralCode            String       @unique
-  referredBy              String?
-  rank                    RankKey      @default(member)
-  status                  SecurityStatus @default(active)
-  riskLevel               RiskLevel    @default(low)
-  twoFactorEnabled        Boolean      @default(false)
-  hasTransactionPin       Boolean      @default(false)
-  transactionPinHash      String?
-  profileCompletion       Int          @default(40)
-  lastLoginAt             DateTime     @default(now())
-  lastLoginIp             String       @default("197.232.91.14")
-  device                  String       @default("This device")
-  notificationPreferences Json         @default("{}")
-
-  sessions           Session[]
-  wallets            Wallet[]
-  investments        Investment[]
-  deposits           Deposit[]
-  withdrawals        Withdrawal[]
-  payoutAccounts     PayoutAccount[]
-  transactions       Transaction[]
-  notifications      Notification[]
-  portfolio          PortfolioPoint[]
-  teamMembers        TeamMember[]        @relation("TeamOwner")
-  teamRewards        TeamReward[]        @relation("TeamRewardOwner")
-  referralActivities ReferralActivity[]  @relation("ReferralActivityOwner")
-  bonusAwards        BonusAward[]        @relation("BonusAwardOwner")
-  supportTickets     SupportTicket[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Session {
-  id         String    @id @default(cuid())
-  token      String    @unique
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ip         String?
-  userAgent  String?
-  createdAt  DateTime  @default(now())
-  lastSeenAt DateTime  @default(now())
-  expiresAt  DateTime
-  revokedAt  DateTime?
-}
-
-model OtpCode {
-  id         String    @id @default(cuid())
-  target     String
-  purpose    String
-  code       String
-  attempts   Int       @default(0)
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime
-  consumedAt DateTime?
-}
-
-model Product {
-  id                  String       @id @default(cuid())
-  slug                String       @unique
-  name                String
-  tagline             String
-  description         String
-  tier                ProductTier
-  status              ProductStatus @default(active)
-  featured            Boolean      @default(false)
-  badge               ProductBadge?
-  minEntry            Decimal      @db.Decimal(14, 2)
-  maxEntry            Decimal      @db.Decimal(14, 2)
-  stepAmount          Decimal      @db.Decimal(14, 2)
-  durationDays        Int
-  dailyRate           Decimal      @db.Decimal(6, 2)
-  dailyEarningAtEntry Decimal      @db.Decimal(14, 2)
-  totalPayoutMultiplier Decimal    @db.Decimal(6, 3)
-  capacityTotal       Decimal      @db.Decimal(14, 2)
-  capacityUsed        Decimal      @db.Decimal(14, 2)
-  icon                String
-  terms               Json
-  eligibility         Json
-  faq                 Json
-  riskNote            String
-  version             Int          @default(1)
-  createdAt           DateTime     @default(now())
-
-  investments Investment[]
-}
-
-model Wallet {
-  id        String     @id @default(cuid())
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet    WalletType
-  balance   Decimal    @db.Decimal(14, 2) @default(0)
-  locked    Boolean    @default(false)
-  updatedAt DateTime   @updatedAt
-
-  @@unique([userId, wallet])
-}
-
-model Investment {
-  id                String           @id @default(cuid())
-  reference         String           @unique
-  userId            String
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId         String
-  product           Product          @relation(fields: [productId], references: [id])
-  amount            Decimal          @db.Decimal(14, 2)
-  dailyEarning      Decimal          @db.Decimal(14, 2)
-  projectedEarnings Decimal          @db.Decimal(14, 2)
-  projectedPayout   Decimal          @db.Decimal(14, 2)
-  earnedToDate      Decimal          @db.Decimal(14, 2) @default(0)
-  startDate         DateTime
-  maturityDate      DateTime
-  status            InvestmentStatus @default(active)
-  wallet            WalletType       @default(investment)
-  createdAt         DateTime         @default(now())
-
-  earnings EarningEntry[]
-
-  @@index([userId, status])
-}
-
-model EarningEntry {
-  id           String        @id @default(cuid())
-  investmentId String
-  investment   Investment    @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  day          Int
-  date         DateTime
-  amount       Decimal       @db.Decimal(14, 2)
-  status       EarningStatus @default(scheduled)
-  creditedAt   DateTime?
-
-  @@unique([investmentId, day])
-}
-
-model Deposit {
-  id                String        @id @default(cuid())
-  reference         String        @unique
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount            Decimal       @db.Decimal(14, 2)
-  fee               Decimal       @db.Decimal(14, 2) @default(0)
-  wallet            WalletType    @default(deposit)
-  phone             String
-  method            PaymentMethod @default(mpesa)
-  providerReference String?
-  providerApprovalUrl String?
-  status            DepositStatus @default(pending)
-  checkoutRequestId String?
-  merchantRequestId String?
-  failureReason     String?
-  events            Json          @default("[]")
-  createdAt         DateTime      @default(now())
-  completedAt       DateTime?
-
-  @@index([userId, status])
-}
-
-model PayoutAccount {
-  id         String         @id @default(cuid())
-  userId     String
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nickname   String
-  phone      String
-  provider   PayoutProvider @default(mpesa)
-  isPrimary  Boolean        @default(false)
-  verified   Boolean        @default(false)
-  createdAt  DateTime       @default(now())
-  lastUsedAt DateTime?
-
-  withdrawals Withdrawal[]
-
-  @@index([userId])
-}
-
-model Withdrawal {
-  id              String           @id @default(cuid())
-  reference       String           @unique
-  userId          String
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount          Decimal          @db.Decimal(14, 2)
-  fee             Decimal          @db.Decimal(14, 2)
-  netAmount       Decimal          @db.Decimal(14, 2)
-  wallet          WalletType       @default(earnings)
-  payoutAccountId String
-  payoutAccount   PayoutAccount    @relation(fields: [payoutAccountId], references: [id])
-  status          WithdrawalStatus @default(pending_approval)
-  riskScore       Int              @default(0)
-  riskLevel       RiskLevel        @default(low)
-  pinVerified     Boolean          @default(false)
-  otpVerified     Boolean          @default(false)
-  approvals       Json             @default("[]")
-  events          Json             @default("[]")
-  rejectionReason String?
-  createdAt       DateTime         @default(now())
-  paidAt          DateTime?
-
-  @@index([userId, status])
-}
-
-model Transaction {
-  id           String                @id @default(cuid())
-  reference    String                @unique
-  userId       String
-  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type         TransactionType
-  status       TransactionStatus
-  direction    TransactionDirection
-  amount       Decimal               @db.Decimal(14, 2)
-  fee          Decimal               @db.Decimal(14, 2) @default(0)
-  netAmount    Decimal               @db.Decimal(14, 2)
-  wallet       WalletType
-  description  String
-  counterparty String?
-  productId    String?
-  depositId    String?
-  withdrawalId String?
-  events       Json                  @default("[]")
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-
-  @@index([userId, createdAt])
-  @@index([userId, type])
-}
-
-model PortfolioPoint {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      DateTime
-  portfolio Decimal  @db.Decimal(14, 2)
-  earnings  Decimal  @db.Decimal(14, 2)
-  invested  Decimal  @db.Decimal(14, 2)
-
-  @@index([userId, date])
-}
-
-model Notification {
-  id        String               @id @default(cuid())
-  userId    String
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  NotificationCategory
-  title     String
-  message   String
-  read      Boolean              @default(false)
-  actionUrl String?
-  actionLabel String?
-  createdAt DateTime             @default(now())
-
-  @@index([userId, read])
-}
-
-/* ------------------------------------------------------------------ */
-/* Team, referrals, rewards                                            */
-/* ------------------------------------------------------------------ */
-
-model TeamMember {
-  id                 String   @id @default(cuid())
-  ownerId            String
-  owner              User     @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  memberUserId       String?
-  fullName           String
-  level              Int
-  parentName         String
-  joinedAt           DateTime
-  active             Boolean  @default(true)
-  verified           Boolean  @default(false)
-  teamVolume         Decimal  @db.Decimal(14, 2) @default(0)
-  rewardContribution Decimal  @db.Decimal(14, 2) @default(0)
-  downlineCount      Int      @default(0)
-  maskedPhone        String
-  createdAt          DateTime @default(now())
-
-  @@index([ownerId])
-}
-
-model TeamReward {
-  id             String           @id @default(cuid())
-  reference      String           @unique
-  ownerId        String
-  owner          User             @relation("TeamRewardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  sourceMember   String
-  level          Int
-  sourceType     TeamRewardSource
-  amount         Decimal          @db.Decimal(14, 2)
-  commissionRate Decimal          @db.Decimal(6, 2)
-  status         RewardStatus     @default(pending)
-  reversedReason String?
-  createdAt      DateTime         @default(now())
-
-  @@index([ownerId, status])
-}
-
-model CommissionRule {
-  id        String   @id @default(cuid())
-  name      String
-  level     Int
-  percent   Decimal  @db.Decimal(6, 2)
-  minRank   RankKey
-  active    Boolean  @default(true)
-  updatedAt DateTime @updatedAt
-}
-
-model ReferralActivity {
-  id         String            @id @default(cuid())
-  ownerId    String
-  owner      User              @relation("ReferralActivityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  memberName String
-  level      Int
-  event      ReferralEventType
-  detail     String
-  amount     Decimal?          @db.Decimal(14, 2)
-  at         DateTime          @default(now())
-
-  @@index([ownerId, at])
-}
-
-model BonusAward {
-  id          String       @id @default(cuid())
-  reference   String       @unique
-  ownerId     String
-  owner       User         @relation("BonusAwardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  title       String
-  description String
-  amount      Decimal      @db.Decimal(14, 2)
-  status      RewardStatus @default(available)
-  wallet      WalletType   @default(bonus)
-  source      String
-  awardedAt   DateTime     @default(now())
-  expiresAt   DateTime?
-  campaignId  String?
-  createdAt   DateTime     @default(now())
-
-  @@index([ownerId, status])
-}
-
-model Coupon {
-  id            String     @id @default(cuid())
-  code          String     @unique
-  title         String
-  description   String
-  type          CouponType
-  value         Decimal    @db.Decimal(14, 2)
-  minAmount     Decimal?   @db.Decimal(14, 2)
-  maxRedemption Int?
-  redemptions   Int        @default(0)
-  expiresAt     DateTime
-  active        Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-}
-
-model Campaign {
-  id          String         @id @default(cuid())
-  name        String
-  description String
-  startsAt    DateTime
-  endsAt      DateTime
-  status      CampaignStatus @default(scheduled)
-  audience    String
-  awardsIssued Int           @default(0)
-  budget      Decimal        @db.Decimal(14, 2)
-  spent       Decimal        @db.Decimal(14, 2) @default(0)
-  accent      CampaignAccent
-  createdAt   DateTime       @default(now())
-}
-
-/* ------------------------------------------------------------------ */
-/* Support                                                             */
-/* ------------------------------------------------------------------ */
-
-model SupportTicket {
-  id           String          @id @default(cuid())
-  reference    String          @unique
-  userId       String
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject      String
-  category     SupportCategory
-  status       TicketStatus    @default(open)
-  priority     TicketPriority  @default(normal)
-  slaDueAt     DateTime
-  lastReplyBy  TicketAuthorRole?
-  satisfaction Int?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  messages SupportMessage[]
-
-  @@index([userId, status])
-}
-
-model SupportMessage {
-  id          String           @id @default(cuid())
-  ticketId    String
-  ticket      SupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author      String
-  authorRole  TicketAuthorRole
-  body        String
-  attachments Json             @default("[]")
-  at          DateTime         @default(now())
-
-  @@index([ticketId])
-}
-
-/* ------------------------------------------------------------------ */
-/* Admin                                                               */
-/* ------------------------------------------------------------------ */
-
-model AdminStaff {
-  id           String   @id @default(cuid())
-  fullName     String
-  email        String   @unique
-  role         Role
-  passwordHash String?
-  status       String   @default("active")
-  lastActiveAt DateTime @default(now())
-  permissions  Json     @default("[]")
-  sessions     AdminSession[]
-}
-
-model AdminSession {
-  id        String     @id @default(cuid())
-  token     String     @unique
-  staffId   String
-  staff     AdminStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime   @default(now())
-  revokedAt DateTime?
-
-  @@index([staffId])
-}
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  actor      String
-  actorRole  Role
-  action     String
-  entityType String
-  entityId   String
-  reason     String
-  oldValue   String?
-  newValue   String?
-  ip         String
-  at         DateTime @default(now())
-
-  @@index([at])
-}
-
-model AuthRateLimit {
-  key          String   @id
-  windowEndsAt DateTime
-  count        Int      @default(0)
-  updatedAt    DateTime @updatedAt
-
-  @@index([windowEndsAt])
-}
-
-model RiskFlag {
-  id                String         @id @default(cuid())
-  userAccountNumber String
-  userName          String
-  rule              String
-  level             RiskLevel
-  detail            String
-  status            RiskFlagStatus @default(open)
-  createdAt         DateTime       @default(now())
-  resolvedAt        DateTime?
-  resolution        String?
-
-  @@index([status])
-}
-
-model LedgerJournal {
-  id                String           @id @default(cuid())
-  reference         String           @unique
-  type              TransactionType
-  description       String
-  totalAmount       Decimal          @db.Decimal(14, 2)
-  actor             String
-  userAccountNumber String?
-  immutable         Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-
-  entries LedgerEntry[]
-}
-
-model LedgerEntry {
-  id          String        @id @default(cuid())
-  journalId   String
-  journal     LedgerJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
-  account     String
-  accountCode String
-  direction   String
-  amount      Decimal       @db.Decimal(14, 2)
-  currency    String        @default("KES")
-
-  @@index([journalId])
-}
-
-model SystemSetting {
-  key   String @id
-  value Json
-}
-
-model Announcement {
-  id          String   @id @default(cuid())
-  title       String
-  body        String
-  severity    String
-  audience    String   @default("All members")
-  publishedAt DateTime @default(now())
-}
-
-model ReconciliationReview {
-  id         String   @id @default(cuid())
-  dayKey     String   @unique
-  reviewer   String
-  reviewedAt DateTime @default(now())
 }

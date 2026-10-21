@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, unauthorized, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import {
   DAILY_WITHDRAWAL_LIMIT,
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json();
+    const body = await readJson(req);
     const amount = Number(body.amount);
     const wallet = body.wallet as WalletType;
     const payoutAccountId = String(body.payoutAccountId ?? "");

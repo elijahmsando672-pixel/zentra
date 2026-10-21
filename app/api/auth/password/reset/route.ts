@@ -1,11 +1,11 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/prisma";
-import { ok, fail, serverError } from "@/lib/server/api";
+import { fail, ok, readJson, serverError } from "@/lib/server/api";
 import { normalizePhoneKE } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await readJson(req);
     const raw = String(body.target ?? "").trim();
     const newPassword = String(body.newPassword ?? "");
     const key = raw.includes("@") ? raw.toLowerCase() : normalizePhoneKE(raw);

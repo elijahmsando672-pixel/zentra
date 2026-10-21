@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { ok, unauthorized, serverError } from "@/lib/server/api";
+import { ok, readJson, serverError, unauthorized } from "@/lib/server/api";
 import { getCurrentUser } from "@/lib/server/session";
 import { maskPhone } from "@/lib/utils";
 
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorized();
-    const body = await req.json();
+    const body = await readJson(req);
     const kind = String(body.kind ?? "id");
 
     await prisma.user.update({
